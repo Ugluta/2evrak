@@ -1,0 +1,6 @@
+{
+  "name": "2Evrak",
+  "description": "1 Milyon Öğretmen Hedefli Kapsamlı Doküman, İçerik, AI Ajanları, Scraper ve Çok Kanallı Yönetim Platformu",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
