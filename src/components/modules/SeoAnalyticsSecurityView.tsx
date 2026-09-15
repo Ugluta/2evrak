@@ -184,7 +184,7 @@ export const SeoAnalyticsSecurityView: React.FC = () => {
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
               <h3 className="text-sm font-bold text-white mb-3">En Çok İndirilen MEB Evrakları</h3>
               <div className="space-y-2 text-xs">
-                {documents.slice(0, 5).map((doc) => (
+                {(documents || []).slice(0, 5).map((doc) => (
                   <div
                     key={doc.id}
                     className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800/80"

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import {
   ShieldCheck,
@@ -15,6 +15,8 @@ import {
   Clock,
   User,
   ExternalLink,
+  Shield,
+  Check,
 } from "lucide-react";
 import { ModerationItem } from "../../types";
 
@@ -24,6 +26,7 @@ export const ModerationView: React.FC = () => {
     approveModerationItem,
     rejectModerationItem,
     requestRevisionModerationItem,
+    activeSubItemId,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected" | "revision_required" | "all">("pending");
@@ -32,6 +35,20 @@ export const ModerationView: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<ModerationItem | null>(null);
   const [actionModal, setActionModal] = useState<"approve" | "reject" | "revision" | null>(null);
   const [actionNotes, setActionNotes] = useState("");
+
+  // Sync with sidebar sub-items
+  useEffect(() => {
+    if (!activeSubItemId) return;
+    if (activeSubItemId.includes("onay_bekleyen") || activeSubItemId.includes("Onay Bekleyen")) {
+      setActiveTab("pending");
+      setSelectedType("all");
+    } else if (activeSubItemId.includes("raporlanan") || activeSubItemId.includes("Raporlanan")) {
+      setActiveTab("revision_required");
+      setSelectedType("all");
+    } else if (activeSubItemId.includes("ai_filtre") || activeSubItemId.includes("AI Güvenlik")) {
+      setSelectedType("ai_content");
+    }
+  }, [activeSubItemId]);
 
   const filteredItems = moderationItems.filter((item) => {
     const matchesTab = activeTab === "all" || item.status === activeTab;
@@ -44,6 +61,9 @@ export const ModerationView: React.FC = () => {
   });
 
   const pendingCount = moderationItems.filter((m) => m.status === "pending").length;
+  const approvedCount = moderationItems.filter((m) => m.status === "approved").length;
+  const revisionCount = moderationItems.filter((m) => m.status === "revision_required").length;
+  const rejectedCount = moderationItems.filter((m) => m.status === "rejected").length;
 
   const handleConfirmAction = () => {
     if (!selectedItem || !actionModal) return;
@@ -62,132 +82,171 @@ export const ModerationView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-white tracking-tight">16 — Moderasyon Merkezi</h1>
-            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Kural 3: Sıfır Körlemesine Yayın
-            </span>
+    <div className="space-y-4">
+      {/* AdminLTE Callout Header */}
+      <div className="bg-white border-l-4 border-l-[#ffc107] border border-[#dee2e6] rounded p-4 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldCheck className="w-5 h-5 text-[#ffc107]" />
+              <h1 className="text-base font-bold text-[#212529] tracking-tight">
+                Moderasyon & İçerik Onay Merkezi
+              </h1>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-[#fff8e1] text-[#b78103] font-bold border border-[#ffc107]/40">
+                Kural 18: Sıfır Kontrolsüz Yayın
+              </span>
+            </div>
+            <p className="text-xs text-[#6c757d] leading-relaxed">
+              Scraper bot çıktıları, Gemini AI dokümanları ve öğretmen yüklemeleri için merkezi inceleme, telif ve pedagojik denetim kapısı.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Scraper Çıktıları, AI Dokümanları ve Öğretmen Yüklemeleri için Merkezi Doğrulama & MEB Uyumluluk Kapısı
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
-            Bekleyen İnceleme: <span className="font-bold text-amber-400 font-mono">{pendingCount}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="px-3 py-1.5 rounded bg-[#fff8e1] border border-[#ffc107]/40 text-xs text-[#856404] font-semibold">
+              Bekleyen İnceleme: <span className="font-bold text-[#b78103] font-mono ml-1">{pendingCount}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs & Filters */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-3 rounded-xl">
-        <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-          {[
-            { key: "pending", label: "Bekleyenler", count: pendingCount },
-            { key: "approved", label: "Onaylananlar" },
-            { key: "revision_required", label: "Revizyon İstenenler" },
-            { key: "rejected", label: "Reddedilenler" },
-            { key: "all", label: "Tüm Akış" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                activeTab === tab.key
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800"
-              }`}
-            >
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-mono">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+      {/* AdminLTE Small Boxes Metric Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="bg-[#ffc107] text-[#1f2d3d] rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">{pendingCount}</div>
+            <p className="text-xs font-bold text-[#1f2d3d]/90 mt-0.5">Onay Bekleyen Evrak</p>
+          </div>
+          <Clock className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-[#1f2d3d]/80 mt-2 font-mono">İnceleme Sırasında</span>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Başlık veya gönderen ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
+        <div className="bg-[#28a745] text-white rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">{approvedCount}</div>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Onaylanan (Yayında)</p>
+          </div>
+          <CheckCircle className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-white/80 mt-2 font-mono">Öğretmenlerin Erişimine Açık</span>
+        </div>
+
+        <div className="bg-[#17a2b8] text-white rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">{revisionCount}</div>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Revizyon İstenen</p>
+          </div>
+          <AlertTriangle className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-white/80 mt-2 font-mono">Düzeltme Bekleniyor</span>
+        </div>
+
+        <div className="bg-[#dc3545] text-white rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">{rejectedCount}</div>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Reddedilen İçerik</p>
+          </div>
+          <XCircle className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-white/80 mt-2 font-mono">Mevzuata Aykırı Bulundu</span>
+        </div>
+      </div>
+
+      {/* AdminLTE Nav-pills and Filter bar */}
+      <div className="card card-outline card-warning bg-white border border-[#dee2e6] rounded shadow-xs p-3 space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 custom-scrollbar">
+            {[
+              { key: "pending", label: "Bekleyenler", count: pendingCount },
+              { key: "approved", label: "Onaylananlar" },
+              { key: "revision_required", label: "Revizyon İstenenler" },
+              { key: "rejected", label: "Reddedilenler" },
+              { key: "all", label: "Tüm Akış" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  activeTab === tab.key
+                    ? "bg-[#ffc107] text-[#1f2d3d] font-bold shadow-xs"
+                    : "bg-[#f8f9fa] text-[#495057] hover:bg-[#e9ecef] border border-[#ced4da]"
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.count !== undefined && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/80 text-[#212529] font-mono font-bold">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
 
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-          >
-            <option value="all">Tüm Kaynaklar</option>
-            <option value="document">Öğretmen Evrakı</option>
-            <option value="scraper_output">Scraper Çıktısı</option>
-            <option value="ai_content">AI Üretimi</option>
-            <option value="comment">Kullanıcı Yorumu</option>
-          </select>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-60">
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                placeholder="Başlık veya gönderen ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white border border-[#ced4da] rounded pl-8 pr-3 py-1 text-xs text-[#495057] focus:outline-none focus:border-[#ffc107]"
+              />
+            </div>
+
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="bg-white border border-[#ced4da] rounded px-2.5 py-1 text-xs text-[#495057] focus:outline-none focus:border-[#ffc107] cursor-pointer"
+            >
+              <option value="all">Tüm Kaynaklar</option>
+              <option value="document">Öğretmen Evrakı</option>
+              <option value="content">İçerik & Makale</option>
+              <option value="scraper_output">Scraper Çıktısı</option>
+              <option value="ai_content">AI Üretimi</option>
+              <option value="comment">Kullanıcı Yorumu</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Moderation Items Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="card card-outline card-secondary bg-white border border-[#dee2e6] rounded shadow-xs overflow-hidden">
         {filteredItems.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 space-y-2">
-            <ShieldCheck className="w-8 h-8 mx-auto text-emerald-500" />
-            <div className="text-sm font-semibold text-white">İnceleme Kuyruğu Temiz</div>
-            <p className="text-xs text-slate-500">
+          <div className="p-10 text-center text-[#6c757d] space-y-2">
+            <ShieldCheck className="w-8 h-8 mx-auto text-[#28a745]" />
+            <div className="text-sm font-bold text-[#212529]">İnceleme Kuyruğu Temiz</div>
+            <p className="text-xs text-[#6c757d]">
               Şu anda seçilen filtrelere uygun incelenecek içerik bulunmuyor.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+            <table className="w-full text-left text-xs text-[#495057]">
+              <thead className="bg-[#f4f6f9] text-[10px] font-bold uppercase tracking-wider text-[#495057] border-b border-[#dee2e6]">
                 <tr>
-                  <th className="p-3.5">İçerik & Başlık</th>
-                  <th className="p-3.5">Kaynak Türü</th>
-                  <th className="p-3.5">Gönderen / Kaynak</th>
-                  <th className="p-3.5">AI Güvenlik Skoru</th>
-                  <th className="p-3.5">Tarih</th>
-                  <th className="p-3.5">Durum</th>
-                  <th className="p-3.5 text-right">Aksiyonlar</th>
+                  <th className="py-2.5 px-3">İçerik & Başlık</th>
+                  <th className="py-2.5 px-3">Kaynak Türü</th>
+                  <th className="py-2.5 px-3">Gönderen / Kaynak</th>
+                  <th className="py-2.5 px-3">AI Güvenlik Skoru</th>
+                  <th className="py-2.5 px-3">Tarih</th>
+                  <th className="py-2.5 px-3">Durum</th>
+                  <th className="py-2.5 px-3 text-right">Aksiyonlar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-[#dee2e6]">
                 {filteredItems.map((item) => {
                   return (
-                    <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="p-3.5 max-w-sm">
-                        <div className="font-semibold text-white truncate">{item.title}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                    <tr key={item.id} className="hover:bg-[#f8f9fa]">
+                      <td className="py-2.5 px-3 max-w-sm">
+                        <div className="font-bold text-[#212529] truncate">{item.title}</div>
+                        <div className="text-[11px] text-[#6c757d] mt-0.5 truncate">
                           {item.aiSafetySummary}
                         </div>
                       </td>
 
-                      <td className="p-3.5 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border ${
-                            item.targetType === "scraper_output"
-                              ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
-                              : item.targetType === "ai_content"
-                              ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                              : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                          }`}
-                        >
-                          {item.targetType === "scraper_output" && <Radio className="w-3 h-3" />}
-                          {item.targetType === "ai_content" && <Sparkles className="w-3 h-3" />}
-                          {item.targetType === "document" && <FileText className="w-3 h-3" />}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f8f9fa] border border-[#ced4da] text-[#495057]">
+                          {item.targetType === "scraper_output" && <Radio className="w-3 h-3 text-[#17a2b8]" />}
+                          {item.targetType === "ai_content" && <Sparkles className="w-3 h-3 text-[#6f42c1]" />}
+                          {item.targetType === "document" && <FileText className="w-3 h-3 text-[#007bff]" />}
                           {item.targetType === "scraper_output"
                             ? "Scraper Çıktısı"
                             : item.targetType === "ai_content"
@@ -196,20 +255,20 @@ export const ModerationView: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="p-3.5 whitespace-nowrap">
-                        <div className="text-slate-200 font-medium">{item.submittedBy}</div>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="text-[#212529] font-medium">{item.submittedBy}</div>
                       </td>
 
-                      <td className="p-3.5 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="w-16 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div className="w-16 bg-[#e9ecef] h-1.5 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full ${
                                 item.aiSafetyScore > 90
-                                  ? "bg-emerald-400"
+                                  ? "bg-[#28a745]"
                                   : item.aiSafetyScore > 75
-                                  ? "bg-amber-400"
-                                  : "bg-red-400"
+                                  ? "bg-[#ffc107]"
+                                  : "bg-[#dc3545]"
                               }`}
                               style={{ width: `${item.aiSafetyScore}%` }}
                             />
@@ -217,10 +276,10 @@ export const ModerationView: React.FC = () => {
                           <span
                             className={`font-mono font-bold text-[11px] ${
                               item.aiSafetyScore > 90
-                                ? "text-emerald-400"
+                                ? "text-[#28a745]"
                                 : item.aiSafetyScore > 75
-                                ? "text-amber-400"
-                                : "text-red-400"
+                                ? "text-[#856404]"
+                                : "text-[#dc3545]"
                             }`}
                           >
                             %{item.aiSafetyScore}
@@ -228,24 +287,24 @@ export const ModerationView: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="p-3.5 whitespace-nowrap text-slate-400 text-[11px] font-mono">
+                      <td className="py-2.5 px-3 whitespace-nowrap text-[#6c757d] text-[11px] font-mono">
                         {item.submittedAt}
                       </td>
 
-                      <td className="p-3.5 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             item.status === "approved"
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              ? "bg-[#eaf7ed] text-[#28a745]"
                               : item.status === "rejected"
-                              ? "bg-red-500/10 text-red-400 border-red-500/20"
+                              ? "bg-[#f8d7da] text-[#dc3545]"
                               : item.status === "revision_required"
-                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                              : "bg-slate-800 text-slate-300 border-slate-700"
+                              ? "bg-[#fff3cd] text-[#856404]"
+                              : "bg-[#f8f9fa] text-[#495057] border border-[#ced4da]"
                           }`}
                         >
                           {item.status === "approved"
-                            ? "Onaylandı (Yayında)"
+                            ? "Onaylandı"
                             : item.status === "rejected"
                             ? "Reddedildi"
                             : item.status === "revision_required"
@@ -254,45 +313,48 @@ export const ModerationView: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="p-3.5 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         {item.status === "pending" ? (
                           <div className="flex items-center justify-end gap-1.5">
                             <button
+                              type="button"
                               onClick={() => {
                                 setSelectedItem(item);
                                 setActionModal("approve");
                                 setActionNotes("MEB formatına uygun bulundu, onaylandı.");
                               }}
-                              className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                              className="p-1 rounded bg-[#eaf7ed] hover:bg-[#d4edda] text-[#28a745] cursor-pointer transition-colors"
                               title="Onayla & Yayınla"
                             >
                               <CheckCircle className="w-4 h-4" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => {
                                 setSelectedItem(item);
                                 setActionModal("revision");
                                 setActionNotes("Kazanım kodları eksik, lütfen ekleyiniz.");
                               }}
-                              className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-colors"
+                              className="p-1 rounded bg-[#fff3cd] hover:bg-[#ffeeba] text-[#856404] cursor-pointer transition-colors"
                               title="Revizyon İste"
                             >
                               <AlertTriangle className="w-4 h-4" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => {
                                 setSelectedItem(item);
                                 setActionModal("reject");
                                 setActionNotes("İçerik standartlara uygun değil.");
                               }}
-                              className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                              className="p-1 rounded bg-[#f8d7da] hover:bg-[#f5c6cb] text-[#dc3545] cursor-pointer transition-colors"
                               title="Reddet"
                             >
                               <XCircle className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <div className="text-[10px] text-slate-500">
+                          <div className="text-[10px] text-[#6c757d]">
                             {item.reviewedBy} • {item.reviewedAt}
                           </div>
                         )}
@@ -308,13 +370,13 @@ export const ModerationView: React.FC = () => {
 
       {/* Action Dialog Modal */}
       {actionModal && selectedItem && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                {actionModal === "approve" && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                {actionModal === "reject" && <XCircle className="w-4 h-4 text-red-400" />}
-                {actionModal === "revision" && <AlertTriangle className="w-4 h-4 text-amber-400" />}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded border border-[#dee2e6] max-w-md w-full p-4 space-y-3 shadow-xl">
+            <div className="flex items-center justify-between pb-2 border-b border-[#dee2e6]">
+              <h3 className="text-sm font-bold text-[#212529] flex items-center gap-1.5">
+                {actionModal === "approve" && <CheckCircle className="w-4 h-4 text-[#28a745]" />}
+                {actionModal === "reject" && <XCircle className="w-4 h-4 text-[#dc3545]" />}
+                {actionModal === "revision" && <AlertTriangle className="w-4 h-4 text-[#ffc107]" />}
                 {actionModal === "approve"
                   ? "İçeriği Onayla & Yayınla"
                   : actionModal === "reject"
@@ -322,51 +384,52 @@ export const ModerationView: React.FC = () => {
                   : "Revizyon Talebi Gönder"}
               </h3>
               <button
+                type="button"
                 onClick={() => setActionModal(null)}
-                className="text-slate-400 hover:text-white"
+                className="text-[#6c757d] hover:text-[#212529] cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="text-xs text-slate-300">
-              <div className="font-semibold text-white mb-1">{selectedItem.title}</div>
-              <div className="text-slate-400 text-[11px]">
-                Gönderen: {selectedItem.submittedBy} • AI Güvenlik: %{selectedItem.aiSafetyScore}
+            <div className="text-xs text-[#495057] bg-[#f8f9fa] p-2.5 rounded border border-[#dee2e6]">
+              <div className="font-bold text-[#212529] mb-0.5">{selectedItem.title}</div>
+              <div className="text-[#6c757d] text-[11px]">
+                Gönderen: {selectedItem.submittedBy} • AI Güvenlik Skoru: %{selectedItem.aiSafetyScore}
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-[#495057] mb-1">
                 {actionModal === "approve"
                   ? "Onay Notu (Opsiyonel):"
-                  : "Açıklama / Gerekçe (Kullanıcıya İletilecek):"}
+                  : "Gerekçe / Açıklama (Kullanıcıya iletilecek):"}
               </label>
               <textarea
                 rows={3}
                 value={actionNotes}
                 onChange={(e) => setActionNotes(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white border border-[#ced4da] rounded p-2 text-xs text-[#495057] focus:outline-none focus:border-[#ffc107]"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#dee2e6]">
               <button
                 type="button"
                 onClick={() => setActionModal(null)}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
+                className="px-3 py-1.5 rounded bg-[#f8f9fa] hover:bg-[#e9ecef] border border-[#ced4da] text-[#495057] text-xs font-semibold cursor-pointer"
               >
                 Vazgeç
               </button>
               <button
                 type="button"
                 onClick={handleConfirmAction}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white ${
+                className={`px-4 py-1.5 rounded text-xs font-bold text-white cursor-pointer ${
                   actionModal === "approve"
-                    ? "bg-emerald-600 hover:bg-emerald-500"
+                    ? "bg-[#28a745] hover:bg-[#218838]"
                     : actionModal === "reject"
-                    ? "bg-red-600 hover:bg-red-500"
-                    : "bg-amber-600 hover:bg-amber-500"
+                    ? "bg-[#dc3545] hover:bg-[#c82333]"
+                    : "bg-[#ffc107] text-[#1f2d3d] hover:bg-[#e0a800]"
                 }`}
               >
                 İşlemi Tamamla

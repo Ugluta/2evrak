@@ -29,6 +29,9 @@ import {
   WebhookEndpoint,
   QueueJob,
   WorkerPoolStatus,
+  AcademicCalendarConfig,
+  GradeCurriculum,
+  JudicialPrecedent,
 } from "./types";
 
 export const initialSystemSettings: SystemSettings = {
@@ -43,6 +46,10 @@ export const initialSystemSettings: SystemSettings = {
     contactPhone: "+90 (312) 413 13 00",
     contactEmail: "destek@2evrak.meb.gov.tr",
     maintenanceMode: false,
+    academicYear: "2025-2026",
+    academicTerm: "1. Dönem",
+    guestDailyDownloadLimit: 3,
+    teacherDailyDownloadLimit: 50,
   },
   seo: {
     siteTitle: "2Evrak | Türkiye'nin En Kapsamlı Öğretmen Doküman ve Plan Havuzu",
@@ -81,6 +88,95 @@ export const initialSystemSettings: SystemSettings = {
     maxUploadSizeMb: 50,
     auditLogRetentionDays: 365,
   },
+  aiApi: {
+    primaryProvider: "gemini",
+    geminiApiKey: "AIzaSyDummyKeyForMebSystem2026...",
+    anthropicApiKey: "",
+    deepseekApiKey: "",
+    openaiApiKey: "",
+    copilotApiKey: "",
+    metaApiKey: "",
+    defaultModel: "gemini-2.5-flash",
+    scraperAiAutoProcessing: true,
+    autoGenerateZumreAndPlans: true,
+  },
+  thirdPartyAdsAndAnalytics: {
+    googleAnalyticsId: "G-2EVRAKMEB2026",
+    googleAdsenseId: "ca-pub-2evrakmebads",
+    amazonAffiliateTag: "2evrak-21",
+    metaPixelId: "123456789098765",
+    customHeadCode: "<!-- 2Evrak MEB Custom Header Enjeksiyonu -->",
+    customFooterCode: "<!-- 2Evrak Footer Scriptler -->",
+  },
+  newsletterAndMessages: {
+    smtpHost: "smtp.2evrak.meb.gov.tr",
+    smtpPort: 587,
+    smtpUser: "noreply@2evrak.com",
+    senderEmail: "iletisim@2evrak.com",
+    newsletterActive: true,
+    notifyOnNewMessage: true,
+    autoReplyTemplate: "Sayın Öğretmenimiz, mesajınız alınmıştır. 2Evrak MEB Destek Ekibi en kısa sürede dönüş yapacaktır.",
+  },
+  calendarAndAcademic: {
+    academicYear: "2025-2026",
+    termName: "2. Dönem",
+    termStartDate: "2026-02-02",
+    termEndDate: "2026-06-19",
+    holidaySchedule: "Ara Tatil: 13-17 Nisan 2026",
+  },
+  moduleLimitsAndPages: {
+    defaultPageSize: 20,
+    maxDocumentsPerPage: 50,
+    featuredModules: ["documents", "ai_agents", "scraper", "curriculum_calendar"],
+    allowPublicSubmissions: true,
+  },
+  headerFooterConfig: {
+    headerTitle: "2Evrak",
+    headerSubtitle: "MEB Uyumlu Doküman & Çok Kanallı AI Platformu",
+    headerLogoText: "2E",
+    showPortalBadge: true,
+    portalBadgeText: "1M Öğretmen Hedefi",
+    footerCopyright: "© 2026 2Evrak — Türkiye'nin Dijital Öğretmen Arşivi. Tüm Hakları Saklıdır.",
+    footerAboutText: "MEB müfredatına tam uyumlu zümre tutanakları, yıllık planlar ve sınav soruları ile 1 milyon öğretmenimizin dijital çözüm ortağı.",
+    heroBackgroundUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&auto=format&fit=crop&q=80",
+    footerAccordionColumns: [
+      {
+        title: "Doküman & Zümreler",
+        links: [
+          { label: "Zümre & Plan Arşivi", url: "public_zumre" },
+          { label: "Yıllık Ders Planları", url: "public_plans" },
+          { label: "Ortak Sınav Soruları", url: "public_exams" },
+          { label: "Örnek Ders Notları", url: "public_notes" }
+        ]
+      },
+      {
+        title: "MEB & Mevzuat",
+        links: [
+          { label: "657 Sayılı Kanun & Haklar", url: "public_laws" },
+          { label: "Rehberlik Yönetmeliği", url: "public_guidance" },
+          { label: "Milli Eğitim Duyuruları", url: "public_news" },
+          { label: "Akademik Takvim", url: "public_calendar" }
+        ]
+      },
+      {
+        title: "AI & Araçlar",
+        links: [
+          { label: "Yapay Zeka Plan Sihirbazı", url: "public_ai" },
+          { label: "Mevzuat AI Asistanı", url: "public_ai_laws" },
+          { label: "Otomatik Zümre Üretici", url: "public_ai_zumre" }
+        ]
+      },
+      {
+        title: "Kurumsal & Destek",
+        links: [
+          { label: "Hakkımızda & Misyon", url: "public_about" },
+          { label: "İletişim & Destek", url: "public_contact" },
+          { label: "KVKK & Gizlilik Politikası", url: "public_privacy" },
+          { label: "Yönetim Paneli Girişi", url: "admin_login", isExternal: true }
+        ]
+      }
+    ]
+  },
 };
 
 export const initialPermissions: Permission[] = [
@@ -106,40 +202,49 @@ export const initialRoles: Role[] = [
     color: "bg-red-500/10 text-red-400 border-red-500/20",
   },
   {
-    id: "role_editor_in_chief",
-    name: "Baş Editör",
-    slug: "editor_in_chief",
+    id: "role_administrator",
+    name: "İdareci / Okul Müdürü",
+    slug: "administrator",
     order: 2,
-    permissions: ["view", "create", "edit", "publish", "moderate", "import", "export"],
+    permissions: ["view", "create", "edit", "delete", "publish", "moderate", "import", "export", "manage_system"],
+    isSystemRole: false,
+    color: "bg-blue-600/10 text-blue-400 border-blue-600/20",
+  },
+  {
+    id: "role_head_teacher",
+    name: "Başöğretmen",
+    slug: "head_teacher",
+    order: 3,
+    permissions: ["view", "create", "edit", "publish", "moderate", "import"],
     isSystemRole: false,
     color: "bg-purple-500/10 text-purple-400 border-purple-500/20",
   },
   {
-    id: "role_moderator",
-    name: "Doküman Moderatörü",
-    slug: "moderator",
-    order: 3,
-    permissions: ["view", "edit", "moderate"],
+    id: "role_expert_teacher",
+    name: "Uzman Öğretmen",
+    slug: "expert_teacher",
+    order: 4,
+    permissions: ["view", "create", "edit", "publish"],
     isSystemRole: false,
     color: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   },
   {
-    id: "role_branch_lead",
-    name: "Zümre Başkanı",
-    slug: "branch_lead",
-    order: 4,
-    permissions: ["view", "create", "edit"],
-    isSystemRole: false,
-    color: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  },
-  {
     id: "role_teacher",
-    name: "Öğretmen (Standart)",
+    name: "Öğretmen",
     slug: "teacher",
     order: 5,
     permissions: ["view", "create"],
     isSystemRole: false,
     color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  },
+  {
+    id: "role_candidate_teacher",
+    name: "Aday Öğretmen",
+    slug: "candidate_teacher",
+    order: 6,
+    permissions: ["view", "create"],
+    isSystemRole: false,
+    color: "bg-slate-500/10 text-slate-400 border-slate-500/20",
   },
 ];
 
@@ -160,6 +265,12 @@ export const initialUsers: User[] = [
     twoFactorEnabled: true,
     documentsDownloaded: 1420,
     aiCreditsUsed: 380,
+    verifiedTeacher: true,
+    phone: "0532 111 22 33",
+    tcNo: "12******890",
+    mebbisNo: "MB-284910",
+    verifiedAt: "2024-01-15",
+    verificationStatus: "verified",
   },
   {
     id: "usr_2",
@@ -177,6 +288,12 @@ export const initialUsers: User[] = [
     twoFactorEnabled: true,
     documentsDownloaded: 890,
     aiCreditsUsed: 620,
+    verifiedTeacher: true,
+    phone: "0542 222 33 44",
+    tcNo: "28******412",
+    mebbisNo: "MB-940122",
+    verifiedAt: "2024-03-18",
+    verificationStatus: "verified",
   },
   {
     id: "usr_3",
@@ -194,13 +311,19 @@ export const initialUsers: User[] = [
     twoFactorEnabled: false,
     documentsDownloaded: 430,
     aiCreditsUsed: 140,
+    verifiedTeacher: true,
+    phone: "0555 333 44 55",
+    tcNo: "34******198",
+    mebbisNo: "MB-312984",
+    verifiedAt: "2024-04-05",
+    verificationStatus: "verified",
   },
   {
     id: "usr_4",
     fullName: "Elif Şahin",
     email: "elif.sahin@gmail.com",
     roleId: "role_teacher",
-    packageId: "pkg_free",
+    packageId: "pkg_meb_verified",
     status: "active",
     branch: "Sınıf Öğretmenliği",
     schoolType: "Devlet İlkokulu",
@@ -211,6 +334,12 @@ export const initialUsers: User[] = [
     twoFactorEnabled: false,
     documentsDownloaded: 74,
     aiCreditsUsed: 25,
+    verifiedTeacher: true,
+    phone: "0533 444 55 66",
+    tcNo: "45******710",
+    mebbisNo: "MB-771239",
+    verifiedAt: "2024-08-22",
+    verificationStatus: "verified",
   },
   {
     id: "usr_5",
@@ -228,69 +357,111 @@ export const initialUsers: User[] = [
     twoFactorEnabled: false,
     documentsDownloaded: 12,
     aiCreditsUsed: 50,
+    verifiedTeacher: false,
+    verificationStatus: "unverified",
   },
 ];
 
 export const initialMembershipPackages: MembershipPackage[] = [
   {
     id: "pkg_free",
-    name: "Temel Öğretmen (Ücretsiz)",
-    badge: "ÜCRETSİZ",
+    name: "Standart Üye (Onaysız)",
+    badge: "BAŞLANGIÇ",
     priceMonthly: 0,
     priceYearly: 0,
     isActive: true,
     order: 1,
+    isTeacherSpecial: false,
     limits: {
-      documentDownloadsPerDay: 10,
-      aiCreditsPerMonth: 50,
-      aiQuestionGenerationMonthly: 15,
-      maxDocumentCreationMonthly: 10,
-      storageMb: 250,
+      documentDownloadsPerDay: 5,
+      aiCreditsPerMonth: 25,
+      aiQuestionGenerationMonthly: 10,
+      maxDocumentCreationMonthly: 5,
+      storageMb: 100,
       canShareSocial: false,
       hasSpecialContentAccess: false,
       canExportPdfWord: true,
+      cleanHeaderlessExport: false, // Başlıksız / filigransız çıktı alamaz
+      directZipDownload: false,
+      customWatermarkRemoval: false,
+      priorityQueue: false,
     },
-    description: "Yeni başlayan ve temel MEB evraklarını indirmek isteyen öğretmenler için.",
+    description: "MEBBİS doğrulaması yapılmamış genel kullanıcı ve stajyer öğretmenler için temel erişim.",
+  },
+  {
+    id: "pkg_meb_verified",
+    name: "Doğrulanmış Öğretmen (MEBBİS)",
+    badge: "ÖĞRETMENE ÖZEL",
+    priceMonthly: 0,
+    priceYearly: 0,
+    isActive: true,
+    order: 2,
+    isTeacherSpecial: true,
+    limits: {
+      documentDownloadsPerDay: 30, // Günde 30 belge indirme hakkı
+      aiCreditsPerMonth: 200,
+      aiQuestionGenerationMonthly: 50,
+      maxDocumentCreationMonthly: 30,
+      storageMb: 1024,
+      canShareSocial: true,
+      hasSpecialContentAccess: true,
+      canExportPdfWord: true,
+      cleanHeaderlessExport: true, // Başlıksız / resmi MEB formatında doğrudan çıktı hakkı
+      directZipDownload: true, // Zümre arşivi toplu indirme
+      customWatermarkRemoval: true, // Tanıtım filigranı kaldırılmış temiz belge
+      priorityQueue: true,
+    },
+    description: "T.C. ve MEBBİS doğrulaması tamamlanmış tüm aktif MEB öğretmenlerine ÜCRETSİZ sunulan ayrıcalık paketi.",
   },
   {
     id: "pkg_pro",
     name: "Pro Öğretmen Paketi",
     badge: "EN POPÜLER",
-    priceMonthly: 99,
-    priceYearly: 890,
+    priceMonthly: 89,
+    priceYearly: 790,
     isActive: true,
-    order: 2,
+    order: 3,
+    isTeacherSpecial: false,
     limits: {
-      documentDownloadsPerDay: 100,
-      aiCreditsPerMonth: 500,
-      aiQuestionGenerationMonthly: 150,
-      maxDocumentCreationMonthly: 100,
-      storageMb: 2048,
+      documentDownloadsPerDay: 150,
+      aiCreditsPerMonth: 1000,
+      aiQuestionGenerationMonthly: 300,
+      maxDocumentCreationMonthly: 150,
+      storageMb: 4096,
       canShareSocial: true,
       hasSpecialContentAccess: true,
       canExportPdfWord: true,
+      cleanHeaderlessExport: true,
+      directZipDownload: true,
+      customWatermarkRemoval: true,
+      priorityQueue: true,
     },
-    description: "Yoğun evrak, soru hazırlama ve zümre planlaması yapan aktif branş öğretmenleri için.",
+    description: "Yoğun evrak, ortak sınav hazırlama, zümre koordinasyonu ve yüksek AI soru üretim ihtiyacı olan öğretmenler için.",
   },
   {
     id: "pkg_vip",
     name: "Zümre & Kurumsal VIP",
     badge: "SINIRSIZ",
-    priceMonthly: 249,
-    priceYearly: 2190,
+    priceMonthly: 199,
+    priceYearly: 1790,
     isActive: true,
-    order: 3,
+    order: 4,
+    isTeacherSpecial: false,
     limits: {
-      documentDownloadsPerDay: 0, // 0 = sınırsız
-      aiCreditsPerMonth: 3000,
-      aiQuestionGenerationMonthly: 1000,
-      maxDocumentCreationMonthly: 500,
+      documentDownloadsPerDay: 0, // 0 = Sınırsız
+      aiCreditsPerMonth: 5000,
+      aiQuestionGenerationMonthly: 2000,
+      maxDocumentCreationMonthly: 1000,
       storageMb: 20480,
       canShareSocial: true,
       hasSpecialContentAccess: true,
       canExportPdfWord: true,
+      cleanHeaderlessExport: true,
+      directZipDownload: true,
+      customWatermarkRemoval: true,
+      priorityQueue: true,
     },
-    description: "Okul idarecileri, zümre başkanları ve sınırsız AI gücü arayan eğitimciler için.",
+    description: "Zümre başkanları, okul idarecileri ve sınırsız kurumsal belge/yazılı arşiv yönetimi arayan eğitim liderleri için.",
   },
 ];
 
@@ -1035,6 +1206,126 @@ export const initialPages: CustomPage[] = [
       },
     ],
   },
+  {
+    id: "page_kurallar",
+    title: "Üye ve Öğretmen Kullanım Kuralları",
+    slug: "uye-kurallari",
+    status: "published",
+    order: 3,
+    seoTitle: "Üye Kuralları ve Etik İlkeler | 2Evrak",
+    seoDescription: "2Evrak platformunu kullanan öğretmenlerimizin uyması gereken etik ilkeler ve paylaşım kuralları.",
+    schemaType: "TermsOfService",
+    publishedAt: "2025-01-01",
+    blocks: [
+      {
+        id: "b_k1",
+        type: "rich_text",
+        title: "Üye Kuralları ve Paylaşım Esasları",
+        content: `# Üye ve Öğretmen Kullanım Kuralları
+
+Değerli Meslektaşımız,
+
+2Evrak platformu, Türkiye'nin dört bir yanındaki öğretmenlerin zümre, yıllık plan, ders materyali ve ortak sınav sorularını güvenle paylaştığı ve ortak havuzdan faydalandığı mesleki bir dayanışma platformudur.
+
+## 1. Hesap Güvenliği ve MEBBİS Doğrulaması
+- Her öğretmen kendi ad soyad, branş ve MEB okul bilgileriyle kayıt olmalıdır.
+- Şifre ve hesap güvenliği üyelerimizin sorumluluğundadır. Hesaplar başkasına devredilemez.
+
+## 2. İçerik ve Telif Hakları
+- Paylaşılan evrakların T.C. Millî Eğitim Bakanlığı talim ve terbiye kurulu müfredatına uygun olması esastır.
+- Telif hakkı ihlali içeren veya kişisel gizliliği ihlal eden (öğrenci TC kimlik, özel fotoğraf vb.) belgelerin yüklenmesi kesinlikle yasaktır.
+
+## 3. Topluluk ve Mesleki Saygı
+- Yorumlarda ve zümre değerlendirmelerinde mesleki etik kurallara bağlı kalınmalıdır.`,
+      },
+    ],
+  },
+  {
+    id: "page_cerez",
+    title: "Çerez (Cookie) Politikası",
+    slug: "cerez-politikasi",
+    status: "published",
+    order: 4,
+    seoTitle: "Çerez Politikası | 2Evrak",
+    seoDescription: "2Evrak web sitesinde kullanılan çerezler ve kullanıcı deneyimi optimizasyonu hakkında bilgilendirme.",
+    schemaType: "LegalNotice",
+    publishedAt: "2025-01-01",
+    blocks: [
+      {
+        id: "b_cz1",
+        type: "rich_text",
+        title: "Çerez Politikası",
+        content: `# Çerez (Cookie) Politikası
+
+2Evrak olarak öğretmenlerimizin web sitemizi en verimli şekilde kullanabilmesi ve kullanıcı deneyimini iyileştirmek için çerezler (cookies) kullanmaktayız.
+
+## 1. Çerez Nedir?
+Çerezler, ziyaret ettiğiniz internet siteleri tarafından tarayıcınız aracılığıyla cihazınıza veya ağ sunucusuna depolanan küçük metin dosyalarıdır.
+
+## 2. Kullanılan Çerez Türleri
+- **Zorunlu Çerezler:** Sitenin güvenli oturum yönetimi ve temel işlevleri için gereklidir.
+- **Performans ve Analitik Çerezleri:** Ziyaretçi trafiğini ve evrak indirme istatistiklerini anonim olarak analiz etmemizi sağlar.
+- **Tercih Çerezleri:** Tema ve sınıf filtreleme tercihlerinizi hatırlamak için kullanılır.`,
+      },
+    ],
+  },
+  {
+    id: "page_gizlilik_kvkk",
+    title: "Gizlilik ve KVKK Aydınlatma Metni",
+    slug: "gizlilik-kvkk",
+    status: "published",
+    order: 5,
+    seoTitle: "Gizlilik ve KVKK | 2Evrak",
+    seoDescription: "6698 sayılı KVKK kapsamında öğretmenlerimizin kişisel verilerinin korunması ve işlenmesi aydınlatma metni.",
+    schemaType: "PrivacyPolicy",
+    publishedAt: "2025-01-01",
+    blocks: [
+      {
+        id: "b_kv1",
+        type: "rich_text",
+        title: "Gizlilik ve KVKK Aydınlatma Metni",
+        content: `# Gizlilik ve KVKK Aydınlatma Metni
+
+2Evrak olarak üyelerimizin ve öğretmenlerimizin kişisel verilerinin gizliliğine ve güvenliğine büyük önem vermekteyiz.
+
+## 1. Veri Sorumlusu
+6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, veri sorumlusu sıfatıyla öğretmen sicil, unvan ve branş bilgileriniz 256-bit SSL şifreleme ile güvenle saklanır.
+
+## 2. Kişisel Verilerin İşlenme Amaçları
+- MEB öğretmen doğrulamasının yapılması,
+- İlgili kademe ve branş için doğru zümre tutanakları ve yıllık planların sunulması,
+- Günlük indirme haklarının adil bir şekilde yönetilmesi.
+
+## 3. Haklarınız
+KVKK'nın 11. maddesi gereğince veri işleme süreçleri hakkında bilgi talep edebilir, silinmesini veya güncellenmesini isteyebilirsiniz.`,
+      },
+    ],
+  },
+  {
+    id: "page_duyuru",
+    title: "2025-2026 Yeni Eğitim Dönemi Duyurusu",
+    slug: "yeni-donem-bildirimi",
+    status: "published",
+    order: 6,
+    seoTitle: "2025-2026 Yeni Eğitim Dönemi Duyurusu | 2Evrak",
+    seoDescription: "Yeni Maarif Modeli ve 2025-2026 eğitim öğretim yılı yenilikleri hakkında resmi duyuru.",
+    schemaType: "Announcement",
+    publishedAt: "2025-09-01",
+    blocks: [
+      {
+        id: "b_d1",
+        type: "rich_text",
+        title: "2025-2026 Yeni Eğitim Dönemi Duyurusu",
+        content: `# 2025-2026 Yeni Eğitim Dönemi Duyurusu
+
+Değerli Meslektaşlarımız,
+
+Yeni Maarif Modeli müfredatına uygun tüm yıllık planlar, zümre tutanakları, kulüp dosyaları ve ortak sınav senaryoları güncellenmiştir. 
+
+Profil ayarlarınızdan sınıf ve branş bilgilerinizi güncelleyerek tek tıkla indirmeye başlayabilir, yapay zeka destekli zümre oluşturma asistanımızdan faydalanabilirsiniz.`,
+      },
+    ],
+  },
 ];
 
 export const initialMenuItems: MenuItem[] = [
@@ -1328,12 +1619,113 @@ export const initialModerationItems: ModerationItem[] = [
     id: "mod_3",
     targetType: "scraper_output",
     targetId: "job_1",
-    title: "MEB 1. Dönem Ortak Sınav Kılavuzu (Scraper)",
-    submittedBy: "Scraper Motoru (MEB Duyurular)",
+    title: "MEB 1. Dönem Ortak Sınav Kılavuzu ve Konu Dağılımları (Scraper)",
+    submittedBy: "MEB Resmi Duyurular Botu",
     submittedAt: "2026-09-12 08:05",
-    status: "in_review",
+    status: "pending",
     aiSafetyScore: 100,
     aiSafetySummary: "Resmi MEB duyurusu doğrulandı. Dosya PDF bütünlüğü tam, duplicate bulunmadı.",
+  },
+  {
+    id: "mod_s2",
+    targetType: "scraper_output",
+    targetId: "job_2",
+    title: "EBA 7. Sınıf Fen Bilimleri Yeni Maarif Modeli Çalışma Yaprakları (Scraper)",
+    submittedBy: "EBA Açık Kaynak Havuzu Botu",
+    submittedAt: "2026-09-12 09:15",
+    status: "pending",
+    aiSafetyScore: 96,
+    aiSafetySummary: "EBA materyal kaynağından çekildi. 3 PDF eki ayrıştırıldı, zararlı içerik bulunmadı.",
+  },
+  {
+    id: "mod_s3",
+    targetType: "scraper_output",
+    targetId: "job_3",
+    title: "ÖSYM 2026 YKS / LGS Sınav Başvuru ve Uygulama Takvimi (Scraper)",
+    submittedBy: "ÖSYM Sınav Arşivi Botu",
+    submittedAt: "2026-09-11 16:40",
+    status: "approved",
+    aiSafetyScore: 100,
+    aiSafetySummary: "ÖSYM resmi portalından başarıyla doğrulandı ve genel arşive aktarıldı.",
+    reviewedBy: "Mustafa Yılmaz",
+    reviewedAt: "2026-09-11 17:00",
+  },
+  {
+    id: "mod_s4",
+    targetType: "scraper_output",
+    targetId: "job_4",
+    title: "Talim Terbiye Kurulu 2025-2026 Haftalık Ders Çizelgesi Tebliği (Scraper)",
+    submittedBy: "MEB Tebliğler Botu",
+    submittedAt: "2026-09-10 11:25",
+    status: "revision_required",
+    aiSafetyScore: 74,
+    aiSafetySummary: "Çekilen HTML içeriğinde tablo formatı bozuk, tekrar kazıma (re-scrape) önerildi.",
+    reviewerNotes: "Tablo ayrıştırıcı düzgün çalışmamış, PDF doğrudan indirilip manuel yüklenmeli.",
+    reviewedBy: "Mustafa Yılmaz",
+    reviewedAt: "2026-09-10 14:00",
+  },
+  {
+    id: "mod_s5",
+    targetType: "scraper_output",
+    targetId: "job_5",
+    title: "Resmi Gazete MEB Personel Görevde Yükselme Yönetmeliği (Scraper)",
+    submittedBy: "Resmi Gazete Botu",
+    submittedAt: "2026-09-09 07:30",
+    status: "rejected",
+    aiSafetyScore: 35,
+    aiSafetySummary: "Mevzuat veri tabanında birebir mükerrer (duplicate) kayıt tespit edildi.",
+    reviewerNotes: "Zaten 24_judicial_precedents altında kayıtlı. Duplicate engellendi.",
+    reviewedBy: "Zeynep Kaya",
+    reviewedAt: "2026-09-09 10:15",
+  },
+  {
+    id: "mod_c1",
+    targetType: "content",
+    targetId: "cnt_1",
+    title: "Yeni Maarif Modelinde Beceri Temelli Ölçme ve Değerlendirme Rehberi",
+    submittedBy: "Zeynep Kaya (Editör)",
+    submittedAt: "2026-09-12 10:00",
+    status: "pending",
+    aiSafetyScore: 98,
+    aiSafetySummary: "Pedagojik dilde yazılmış, telif ihlali içermeyen özgün öğretmen rehber yazısı.",
+  },
+  {
+    id: "mod_c2",
+    targetType: "content",
+    targetId: "cnt_2",
+    title: "2025-2026 Eğitim Öğretim Yılı 1. Dönem Zümre Toplantı Esasları ve Gündem Maddeleri",
+    submittedBy: "Mustafa Demir (Zümre Koordinatörü)",
+    submittedAt: "2026-09-11 15:30",
+    status: "pending",
+    aiSafetyScore: 95,
+    aiSafetySummary: "MEB güncel zümre yönergesiyle %100 uyumlu, kontrol bekliyor.",
+  },
+  {
+    id: "mod_c3",
+    targetType: "content",
+    targetId: "cnt_3",
+    title: "Sınıf İçi Odaklanmayı Artıran 5 Dakikalık Dikkat ve Motivasyon Egzersizleri",
+    submittedBy: "Ahmet Yılmaz (Yazar)",
+    submittedAt: "2026-09-10 09:20",
+    status: "revision_required",
+    aiSafetyScore: 82,
+    aiSafetySummary: "İçerik faydalı ancak MEB rehberlik standartlarına atıf eksik kalmış.",
+    reviewerNotes: "Giriş paragrafına RAM (Rehberlik Araştırma Merkezi) tavsiyesi eklenmeli.",
+    reviewedBy: "Mustafa Yılmaz",
+    reviewedAt: "2026-09-10 11:00",
+  },
+  {
+    id: "mod_c4",
+    targetType: "content",
+    targetId: "cnt_4",
+    title: "Öğretmenler İçin Dijital Materyal Geliştirme ve EBA Entegrasyon Kılavuzu",
+    submittedBy: "2Evrak Pedagoji Ekibi",
+    submittedAt: "2026-09-08 14:00",
+    status: "approved",
+    aiSafetyScore: 100,
+    aiSafetySummary: "Onaylandı ve genel yayın portalında yayına alındı.",
+    reviewedBy: "Mustafa Yılmaz",
+    reviewedAt: "2026-09-08 16:30",
   },
   {
     id: "mod_4",
@@ -1651,3 +2043,66 @@ export const initialWorkerPoolStatus: WorkerPoolStatus = {
     seo_queue: { waiting: 1, processing: 0, completed: 330, failed: 1 },
   },
 };
+
+export const initialJudicialPrecedents: JudicialPrecedent[] = [
+  {
+    id: "jp_1",
+    title: "Öğretmenlerin Destekleme ve Yetiştirme Kurslarında (DYK) Ek Ders Ücretlerinin Ödenmesi Hk.",
+    court: "Danıştay 2. Daire",
+    caseNo: "2024/2451 E., 2025/1120 K.",
+    date: "12.03.2025",
+    category: "Özlük Hakları & Ek Ders",
+    summary: "Hafta sonu DYK kurslarında fiilen derse giren kadrolu ve sözleşmeli öğretmenlere ek ders ücretlerinin %100 zamlı ödenmesi gerektiği, idarenin kesinti yapamayacağı yönünde karar.",
+    fullText: "Danıştay 2. Daire kararında; milli eğitim müdürlüklerince düzenlenen DYK kurslarında görev yapan öğretmenlerin ek ders hesaplamalarında tereddüt yaşandığı, ilgili yönetmelik maddelerine göre fiilen yapılan ders saatlerinin eksiksiz ödenmesi gerektiği hüküm altına alınmıştır.",
+    legalBasis: "657 Sayılı Kanun Madde 89, MEB Ders ve Ek Ders Saatlerine İlişkin Karar",
+    result: "İptal Kararı",
+    tags: ["Ek Ders", "DYK", "Danıştay", "Özlük Hakkı"],
+    viewCount: 1420,
+    downloadCount: 385,
+  },
+  {
+    id: "jp_2",
+    title: "Öğretmen Hakkında Yürütülen Disiplin Soruşturmalarında Savunma Hakkı İhlali",
+    court: "Danıştay 5. Daire",
+    caseNo: "2023/8912 E., 2024/3140 K.",
+    date: "18.10.2024",
+    category: "Disiplin Soruşturmaları",
+    summary: "Disiplin soruşturmalarında öğretmene savunma hakkı için yasal 7 günlük sürenin verilmediği durumlarda verilen disiplin cezalarının hukuka aykırı olduğu.",
+    fullText: "Devlet memurlarının disiplin soruşturmalarında savunma hakkı Anayasal bir hak olup, tebliğ tarihinden itibaren en az 7 gün süre tanınmaksızın tesis edilen disiplin cezası işlemlerinin iptali gerekeceği kararlaştırılmıştır.",
+    legalBasis: "657 Sayılı Kanun Madde 130, Anayasa Madde 36",
+    result: "İptal Kararı",
+    tags: ["Disiplin", "Savunma Hakkı", "Danıştay", "Soruşturma"],
+    viewCount: 980,
+    downloadCount: 210,
+  },
+  {
+    id: "jp_3",
+    title: "İl İçi ve İller Arası Zorunlu Çalışma Yükümlülüğü ve Mazeret Atamaları",
+    court: "Anayasa Mahkemesi",
+    caseNo: "2024/55 B.V.",
+    date: "05.12.2024",
+    category: "Atama & Yer Değiştirme",
+    summary: "Eş durumu mazereti bulunan öğretmenlerin atama taleplerinin idari kapasite gerekçesiyle tamamen reddedilemeyeceği, aile birliği hakkının gözetilmesi gerektiği.",
+    fullText: "Anayasa Mahkemesi bireysel başvuru kararında, aile birliğinin korunması ilkesinin eğitim hizmetlerinin yürütülmesinden üstün tutulması gereken durumları kapsaması gerektiğini, MEB atama yönetmeliğinin bu çerçevede esnek uygulanmasının zorunlu olduğunu belirtmiştir.",
+    legalBasis: "Anayasa Madde 41 (Ailenin Korunması)",
+    result: "Yürütmenin Durdurulması",
+    tags: ["Eş Durumu", "Atama", "AYM", "Mazeret"],
+    viewCount: 2150,
+    downloadCount: 620,
+  },
+  {
+    id: "jp_4",
+    title: "Okul Müdürü ve Yönetici Görevlendirmelerinde Liyakat ve Mülakat Puanı",
+    court: "Danıştay 8. Daire",
+    caseNo: "2025/120 E., 2025/940 K.",
+    date: "22.02.2025",
+    category: "Yönetici Atama",
+    summary: "Yazılı sınav puanı yüksek olan aday ile mülakat puanı arasında fahiş fark oluşturulmak suretiyle yapılan yönetici görevlendirmelerinin iptali.",
+    fullText: "Yazılı sınavda başarılı olan öğretmenlerin mülakat komisyonunca objektif olmayan kriterlerle elenmesi ve yazılı puanlarının altında puan verilmesi suretiyle yapılan atama işlemlerinde hukuka uyarlık bulunmadığına karar verilmiştir.",
+    legalBasis: "MEB Eğitim Kurumlarına Yönetici Seçme Yönetmeliği",
+    result: "İptal Kararı",
+    tags: ["Yönetici Atama", "Mülakat", "Danıştay", "Liyakat"],
+    viewCount: 1650,
+    downloadCount: 410,
+  },
+];

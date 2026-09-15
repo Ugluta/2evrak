@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { AppProvider, useApp } from "./context/AppContext";
 import { Header } from "./components/layout/Header";
 import { Sidebar } from "./components/layout/Sidebar";
+import { PanelHeaderBar } from "./components/layout/PanelHeaderBar";
 
 // Module Views
 import { DashboardView } from "./components/modules/DashboardView";
@@ -18,10 +19,44 @@ import { ContentsSocialView } from "./components/modules/ContentsSocialView";
 import { PagesMenusMediaView } from "./components/modules/PagesMenusMediaView";
 import { SeoAnalyticsSecurityView } from "./components/modules/SeoAnalyticsSecurityView";
 import { NotificationsApiView } from "./components/modules/NotificationsApiView";
+import { CurriculumCalendarView } from "./components/modules/CurriculumCalendarView";
+import { JudicialPrecedentsView } from "./components/modules/JudicialPrecedentsView";
+import { DilekcematikView } from "./components/modules/DilekcematikView";
+import { MebAiChatbot } from "./components/common/MebAiChatbot";
+
+// Public & Teacher Portals
+import { PublicPortalView } from "./components/public/PublicPortalView";
+import { TeacherPortalView } from "./components/teacher/TeacherPortalView";
+import { Menu as MenuIcon } from "lucide-react";
 
 const MainLayout: React.FC = () => {
-  const { activeModuleId } = useApp();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const {
+    activeModuleId,
+    currentView,
+    setCurrentView,
+    isSidebarOpen,
+    setIsSidebarOpen,
+  } = useApp();
+
+  // If Public Portal (Ziyaretçi / Misafir Ana Sayfası)
+  if (currentView === "public") {
+    return (
+      <PublicPortalView
+        onGoToAdminPanel={() => setCurrentView("admin")}
+        onGoToTeacherPortal={() => setCurrentView("teacher")}
+      />
+    );
+  }
+
+  // If Teacher Portal (Üye / Öğretmen Paneli)
+  if (currentView === "teacher") {
+    return (
+      <TeacherPortalView
+        onGoToAdminPanel={() => setCurrentView("admin")}
+        onGoToPublicPortal={() => setCurrentView("public")}
+      />
+    );
+  }
 
   const renderModuleView = () => {
     switch (activeModuleId) {
@@ -39,6 +74,12 @@ const MainLayout: React.FC = () => {
       case "07_contents":
       case "08_social":
         return <ContentsSocialView />;
+      case "23_curriculum_calendar":
+        return <CurriculumCalendarView />;
+      case "24_judicial_precedents":
+        return <JudicialPrecedentsView />;
+      case "25_dilekcematik":
+        return <DilekcematikView />;
       case "09_dashboard":
         return <DashboardView />;
       case "10_notifications":
@@ -67,14 +108,31 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#f4f6f9] text-[#212529] flex flex-col font-sans selection:bg-[#007bff] selection:text-white">
       <Header />
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">{renderModuleView()}</div>
-        </main>
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#f4f6f9]">
+          <PanelHeaderBar />
+          <main className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6 custom-scrollbar bg-[#f4f6f9]">
+            <div className="max-w-7xl mx-auto">{renderModuleView()}</div>
+          </main>
+        </div>
       </div>
+
+      {/* Floating Mobile Menu Button */}
+      <div className="lg:hidden fixed bottom-6 left-5 z-40">
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#007bff] text-white shadow-lg shadow-[#007bff]/30 hover:bg-[#0069d9] active:scale-95 transition-all text-xs font-bold border border-white/20 cursor-pointer"
+          title="Menüyü Aç / Kapat"
+        >
+          <MenuIcon className="w-4 h-4" />
+          <span>Panel Menüsü</span>
+        </button>
+      </div>
+
+      <MebAiChatbot />
     </div>
   );
 };

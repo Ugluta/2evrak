@@ -15,10 +15,17 @@ import {
   Sparkles,
   Server,
   Zap,
+  Home,
+  GraduationCap,
+  Menu as MenuIcon,
+  X,
+  FileSpreadsheet,
 } from "lucide-react";
 
 export const Header: React.FC = () => {
   const {
+    currentView,
+    setCurrentView,
     currentUser,
     setCurrentUser,
     users,
@@ -32,7 +39,10 @@ export const Header: React.FC = () => {
     documents,
     categories,
     setActiveModuleId,
+    navigateToModule,
     systemSettings,
+    isSidebarOpen,
+    setIsSidebarOpen,
   } = useApp();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -59,227 +69,229 @@ export const Header: React.FC = () => {
 
   // Search results preview
   const searchResults = globalSearchQuery.trim()
-    ? documents
+    ? (documents || [])
         .filter(
           (d) =>
             !d.isSoftDeleted &&
-            (d.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-              d.lesson.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-              d.docType.toLowerCase().includes(globalSearchQuery.toLowerCase()))
+            ((d.title && d.title.toLowerCase().includes(globalSearchQuery.toLowerCase())) ||
+              (d.lesson && d.lesson.toLowerCase().includes(globalSearchQuery.toLowerCase())) ||
+              (d.docType && d.docType.toLowerCase().includes(globalSearchQuery.toLowerCase())))
         )
         .slice(0, 5)
     : [];
 
   return (
-    <header className="h-16 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 md:px-6 flex items-center justify-between sticky top-0 z-40">
-      {/* Brand & Scalability Badge */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-indigo-500/20 tracking-wider">
-            2E
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xl tracking-tight text-white font-['Space_Grotesk']">
-                2Evrak
-              </span>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                1M Öğretmen Hedefi
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 hidden sm:block">
-              MEB Uyumlu Doküman & Çok Kanallı AI Platformu
-            </p>
-          </div>
-        </div>
+    <header className="h-14 bg-white border-b border-[#dee2e6] px-3 md:px-5 flex items-center justify-between sticky top-0 z-30 shadow-2xs select-none">
+      {/* Left: Sidebar Toggle & AdminLTE Nav Links */}
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="p-1.5 rounded hover:bg-[#f4f6f9] text-[#6c757d] hover:text-[#343a40] transition-colors cursor-pointer"
+          title="Menüyü Aç / Kapat"
+        >
+          <MenuIcon className="w-5 h-5" />
+        </button>
+
+        {/* AdminLTE Top Navbar Links */}
+        <nav className="hidden sm:flex items-center gap-1 text-xs">
+          <button
+            type="button"
+            onClick={() => navigateToModule("09_dashboard")}
+            className="px-2.5 py-1.5 rounded text-[#495057] hover:text-[#007bff] hover:bg-[#f8f9fa] font-medium transition-colors cursor-pointer"
+          >
+            Ana Sayfa
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigateToModule("06_documents", "Yazılı & Ortak Sınav Soruları")}
+            className="px-2.5 py-1.5 rounded text-[#495057] hover:text-[#007bff] hover:bg-[#f8f9fa] font-medium transition-colors cursor-pointer flex items-center gap-1"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#007bff]" />
+            <span>Yazılı Soruları</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCurrentView("teacher")}
+            className="px-2.5 py-1.5 rounded text-[#495057] hover:text-[#28a745] hover:bg-[#f8f9fa] font-medium transition-colors cursor-pointer flex items-center gap-1"
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-[#28a745]" />
+            <span>Öğretmen Portalı</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCurrentView("public")}
+            className="px-2.5 py-1.5 rounded text-[#495057] hover:text-[#007bff] hover:bg-[#f8f9fa] font-medium transition-colors cursor-pointer flex items-center gap-1"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-[#6c757d]" />
+            <span>Ziyaretçi Portalı</span>
+          </button>
+        </nav>
       </div>
 
-      {/* Global Search Bar */}
-      <div className="relative flex-1 max-w-md mx-4 hidden md:block">
+      {/* Center: AdminLTE Search Bar */}
+      <div className="relative flex-1 max-w-sm mx-3 hidden md:block">
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Evrak, zümre, sınav, ders veya kategori ara... (Ctrl + K)"
+            placeholder="Evrak, sınav, zümre veya modül ara... (Ctrl+K)"
             value={globalSearchQuery}
             onChange={(e) => setGlobalSearchQuery(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-lg pl-9 pr-4 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+            className="w-full bg-[#f4f6f9] border border-[#ced4da] rounded px-3 py-1 text-xs text-[#495057] placeholder-gray-400 focus:outline-none focus:border-[#007bff] focus:bg-white transition-colors pl-8"
           />
+          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2" />
         </div>
 
         {/* Live Search Quick Overlay */}
         {isSearchFocused && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1.5 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-50">
-            <div className="text-[11px] font-semibold text-slate-400 px-2.5 py-1 uppercase tracking-wider">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#dee2e6] rounded shadow-lg p-2 z-50">
+            <div className="text-[10px] font-bold text-[#6c757d] px-2 py-1 uppercase tracking-wider">
               Eşleşen Evraklar
             </div>
             {searchResults.map((doc) => (
               <button
                 key={doc.id}
+                type="button"
                 onClick={() => {
-                  setActiveModuleId("06_documents");
+                  navigateToModule("06_documents");
                   setGlobalSearchQuery(doc.title);
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 flex items-start gap-2.5 text-xs text-slate-200 transition-colors group"
+                className="w-full text-left px-2.5 py-1.5 rounded hover:bg-[#f8f9fa] flex items-start gap-2 text-xs text-[#212529] transition-colors cursor-pointer"
               >
-                <div className="p-1 rounded bg-indigo-500/10 text-indigo-400 mt-0.5">
-                  <Layers className="w-3.5 h-3.5" />
+                <div className="p-1 rounded bg-[#e8f4ff] text-[#007bff] mt-0.5">
+                  <Layers className="w-3 h-3" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-slate-200 truncate group-hover:text-indigo-300">
-                    {doc.title}
-                  </div>
-                  <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+                  <div className="font-semibold truncate">{doc.title}</div>
+                  <div className="text-[10px] text-[#6c757d] flex items-center gap-1.5">
                     <span>{doc.lesson}</span>
                     <span>•</span>
                     <span>{doc.gradeLevel}</span>
                     <span>•</span>
-                    <span className="text-emerald-400">{doc.docType}</span>
+                    <span className="text-[#28a745] font-medium">{doc.docType}</span>
                   </div>
                 </div>
               </button>
             ))}
-            <div className="border-t border-slate-800 mt-1 pt-1 text-center">
-              <button
-                onClick={() => setActiveModuleId("14_search_filter")}
-                className="text-xs text-indigo-400 hover:text-indigo-300 py-1 font-medium"
-              >
-                Gelişmiş Filtreleme Merkezine Git &rarr;
-              </button>
-            </div>
           </div>
         )}
       </div>
 
-      {/* Right Controls: Worker Status, Role Switcher, Notification, User */}
-      <div className="flex items-center gap-2.5">
-        {/* Real-time Worker Badge */}
+      {/* Right: Quick Action Badges, Notifications, Role Profile */}
+      <div className="flex items-center gap-2">
+        {/* Workers Status Badge */}
         <button
-          onClick={() => setActiveModuleId("22_queue_workers")}
-          title="Kuyruk ve Worker Motoru Durumu"
-          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-xs text-slate-300 border border-slate-700/60 transition-colors"
+          type="button"
+          onClick={() => navigateToModule("22_queue_workers")}
+          title="Kuyruk ve Worker Durumu"
+          className="hidden lg:flex items-center gap-1 px-2 py-1 rounded bg-[#f8f9fa] hover:bg-[#e9ecef] border border-[#ced4da] text-[11px] text-[#495057] transition-colors cursor-pointer"
         >
-          <Server className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="font-mono text-[11px] text-cyan-300">6 Worker Aktif</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping ml-0.5" />
+          <Server className="w-3 h-3 text-[#17a2b8]" />
+          <span className="font-mono">6 Worker</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#28a745] animate-pulse" />
         </button>
 
-        {/* AI Gateway Status */}
-        <button
-          onClick={() => setActiveModuleId("15_ai_agents")}
-          title="AI Ajanları Hazır (Gemini Entegre)"
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-xs text-indigo-300 border border-indigo-500/30 transition-colors"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="font-medium">9 AI Ajanı</span>
-        </button>
-
-        {/* Notifications Bell */}
+        {/* Notifications Dropdown */}
         <div className="relative" ref={notifRef}>
           <button
+            type="button"
             onClick={() => setIsNotifOpen(!isNotifOpen)}
-            className="relative p-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 transition-colors"
+            className="relative p-1.5 rounded hover:bg-[#f4f6f9] text-[#6c757d] hover:text-[#343a40] transition-colors cursor-pointer"
             title="Bildirimler"
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+              <span className="absolute 0 top-0.5 right-0.5 bg-[#dc3545] text-white text-[9px] font-bold px-1 rounded-full leading-tight">
                 {unreadCount}
               </span>
             )}
           </button>
 
           {isNotifOpen && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3 z-50">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-white">Bildirimler</span>
-                  {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.5 text-[10px] bg-red-500/20 text-red-400 rounded-full font-medium">
-                      {unreadCount} Yeni
-                    </span>
-                  )}
-                </div>
+            <div className="absolute right-0 mt-1.5 w-80 bg-white border border-[#dee2e6] rounded shadow-lg p-2.5 z-50">
+              <div className="flex items-center justify-between pb-2 border-b border-[#dee2e6]">
+                <span className="font-bold text-xs text-[#212529]">
+                  {unreadCount} Yeni Bildirim
+                </span>
                 {unreadCount > 0 && (
                   <button
+                    type="button"
                     onClick={markAllNotificationsRead}
-                    className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                    className="text-[10px] text-[#007bff] hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <Check className="w-3 h-3" /> Tümünü Okundu Say
+                    <Check className="w-3 h-3" /> Tümünü Oku
                   </button>
                 )}
               </div>
 
-              <div className="max-h-72 overflow-y-auto divide-y divide-slate-800/60 my-1">
-                {notifications.slice(0, 5).map((n) => (
+              <div className="max-h-60 overflow-y-auto divide-y divide-[#dee2e6] my-1 custom-scrollbar">
+                {notifications.slice(0, 4).map((n) => (
                   <div
                     key={n.id}
                     onClick={() => markNotificationAsRead(n.id)}
-                    className={`py-2.5 px-2 rounded-lg cursor-pointer transition-colors ${
-                      n.isRead ? "opacity-60 hover:opacity-100" : "bg-slate-800/40 hover:bg-slate-800/70"
+                    className={`py-2 px-1 text-xs cursor-pointer hover:bg-[#f8f9fa] ${
+                      n.isRead ? "opacity-60" : "font-semibold"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-xs font-semibold text-slate-200">{n.title}</h4>
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                        {n.createdAt.slice(11)}
+                    <div className="flex items-center justify-between text-[#212529]">
+                      <span>{n.title}</span>
+                      <span className="text-[10px] text-gray-400 font-normal">
+                        {n.createdAt ? (n.createdAt.includes("T") ? n.createdAt.split("T")[1]?.slice(0, 5) : n.createdAt.slice(11, 16)) : ""}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{n.message}</p>
+                    <p className="text-[11px] text-[#6c757d] mt-0.5 font-normal line-clamp-1">{n.message}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-2 border-t border-slate-800 text-center">
+              <div className="pt-2 border-t border-[#dee2e6] text-center">
                 <button
+                  type="button"
                   onClick={() => {
                     setIsNotifOpen(false);
-                    setActiveModuleId("10_notifications");
+                    navigateToModule("10_notifications");
                   }}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+                  className="text-xs text-[#007bff] hover:underline font-semibold cursor-pointer"
                 >
-                  Tüm Bildirim Merkezini Görüntüle &rarr;
+                  Tüm Bildirimleri Göster
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Role & User Switcher (RBAC Tester) */}
+        {/* Role & Profile Switcher (AdminLTE User Menu) */}
         <div className="relative" ref={roleRef}>
           <button
+            type="button"
             onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
-            className="flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 transition-colors"
+            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#f4f6f9] border border-transparent hover:border-[#ced4da] transition-colors cursor-pointer"
           >
-            <img
-              src={currentUser.avatarUrl}
-              alt={currentUser.fullName}
-              className="w-7 h-7 rounded-full object-cover border border-indigo-500/40"
-            />
+            <div className="w-7 h-7 rounded-full bg-[#007bff] text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs">
+              {(currentUser?.fullName || currentUser?.name || "Öğretmen").slice(0, 2)}
+            </div>
             <div className="text-left hidden sm:block">
-              <div className="text-xs font-semibold text-white leading-none">
-                {currentUser.fullName}
+              <div className="text-xs font-semibold text-[#212529] leading-tight">
+                {currentUser?.fullName || currentUser?.name || "Öğretmen"}
               </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span
-                  className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${currentRole.color}`}
-                >
-                  {currentRole.name}
-                </span>
+              <div className="text-[10px] text-[#6c757d] leading-tight">
+                {currentRole?.name || "Yönetici"}
               </div>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronDown className="w-3 h-3 text-gray-400" />
           </button>
 
           {isRoleMenuOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2.5 z-50">
-              <div className="px-2 py-1.5 border-b border-slate-800 mb-1">
-                <div className="text-xs font-bold text-white">Canlı Rol & Profil Değiştirici</div>
-                <div className="text-[10px] text-slate-400">
-                  RBAC izin matrisini test etmek için kullanıcı seçin:
+            <div className="absolute right-0 mt-1.5 w-64 bg-white border border-[#dee2e6] rounded shadow-lg p-2.5 z-50">
+              <div className="px-2 py-1.5 border-b border-[#dee2e6] mb-1">
+                <div className="text-xs font-bold text-[#212529]">Rol & Profil Değiştir</div>
+                <div className="text-[10px] text-[#6c757d]">
+                  RBAC izinlerini test etmek için profil seçin:
                 </div>
               </div>
 
@@ -287,39 +299,46 @@ export const Header: React.FC = () => {
                 {users.map((u) => {
                   const r = roles.find((role) => role.id === u.roleId);
                   const isSelected = u.id === currentUser.id;
+                  const uDisplayName = u.fullName || u.name || "Kullanıcı";
                   return (
                     <button
                       key={u.id}
+                      type="button"
                       onClick={() => {
                         setCurrentUser(u);
                         setIsRoleMenuOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between p-2 rounded-lg text-xs transition-colors ${
+                      className={`w-full flex items-center justify-between p-1.5 rounded text-xs transition-colors cursor-pointer ${
                         isSelected
-                          ? "bg-indigo-600/20 border border-indigo-500/40 text-white"
-                          : "hover:bg-slate-800 text-slate-300"
+                          ? "bg-[#007bff] text-white font-bold"
+                          : "hover:bg-[#f8f9fa] text-[#495057]"
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <img src={u.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            isSelected ? "bg-white text-[#007bff]" : "bg-[#e9ecef] text-[#495057]"
+                          }`}
+                        >
+                          {uDisplayName.slice(0, 2)}
+                        </div>
                         <div className="text-left">
-                          <div className="font-medium text-slate-200">{u.fullName}</div>
-                          <div className="text-[10px] text-slate-400">{u.branch}</div>
+                          <div className="leading-tight">{uDisplayName}</div>
+                          <div className="text-[10px] opacity-80">{u.branch || "Yönetim"}</div>
                         </div>
                       </div>
                       {r && (
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${r.color}`}>
+                        <span
+                          className={`text-[9px] px-1 py-0.5 rounded font-mono ${
+                            isSelected ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
                           {r.name}
                         </span>
                       )}
                     </button>
                   );
                 })}
-              </div>
-
-              <div className="border-t border-slate-800 mt-2 pt-1.5 px-2 flex justify-between text-[11px] text-slate-400">
-                <span>Branş: {currentUser.branch}</span>
-                <span className="text-indigo-400 font-semibold">{currentUser.schoolType}</span>
               </div>
             </div>
           )}

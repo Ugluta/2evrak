@@ -1,5 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
+import {
+  NAVIGATION_GROUPS,
+  NavigationGroup,
+  NavigationModuleItem,
+} from "../../data/navigationData";
 import {
   Sliders,
   Users,
@@ -25,129 +30,197 @@ import {
   Cpu,
   ChevronRight,
   FolderTree,
-  FileClock,
-  ExternalLink,
+  CalendarDays,
+  Scale,
+  ChevronDown,
+  X,
+  Search,
+  Circle,
+  FileSpreadsheet,
+  CheckCircle2,
 } from "lucide-react";
 
-interface ModuleNavGroup {
-  name: string;
-  items: {
-    id: string;
-    num: string;
-    title: string;
-    icon: React.ElementType;
-    badge?: string | number;
-    badgeColor?: string;
-  }[];
-}
-
-export const Sidebar: React.FC<{ isOpen: boolean; setIsOpen: (open: boolean) => void }> = ({
-  isOpen,
-  setIsOpen,
+export const Sidebar: React.FC<{ isOpen?: boolean; setIsOpen?: (open: boolean) => void }> = ({
+  isOpen: propIsOpen,
+  setIsOpen: propSetIsOpen,
 }) => {
   const {
+    isSidebarOpen: contextIsOpen,
+    setIsSidebarOpen: contextSetIsOpen,
     activeModuleId,
-    setActiveModuleId,
+    activeSubItemId,
+    navigateToModule,
     documents,
     moderationItems,
     queueJobs,
-    aiAgents,
     users,
+    hasPermission,
+    currentRole,
+    currentUser,
+    navigationGroups,
   } = useApp();
+
+  const isOpen = propIsOpen ?? contextIsOpen;
+  const setIsOpen = propSetIsOpen ?? contextSetIsOpen;
+
+  const [sidebarSearch, setSidebarSearch] = useState("");
 
   const pendingModerations = moderationItems.filter((m) => m.status === "pending").length;
   const activeJobs = queueJobs.filter((j) => j.status === "processing" || j.status === "waiting").length;
   const activeDocsCount = documents.filter((d) => !d.isSoftDeleted).length;
 
-  const moduleGroups: ModuleNavGroup[] = [
-    {
-      name: "Yönetim & Panel",
-      items: [
-        { id: "09_dashboard", num: "09", title: "Dinamik Yönetim Paneli", icon: LayoutDashboard },
-        { id: "10_notifications", num: "10", title: "Bildirim Merkezi", icon: Bell },
-      ],
-    },
-    {
-      name: "Doküman & İçerik",
-      items: [
-        {
-          id: "06_documents",
-          num: "06",
-          title: "Doküman Yönetimi",
-          icon: FileText,
-          badge: activeDocsCount,
-          badgeColor: "bg-indigo-500/20 text-indigo-300",
-        },
-        { id: "07_contents", num: "07", title: "İçerik Yönetimi", icon: BookOpen },
-        { id: "11_pages", num: "11", title: "Sayfa Yönetimi", icon: Layers },
-        { id: "12_menus", num: "12", title: "Menü Yönetimi", icon: MenuIcon },
-        { id: "13_media", num: "13", title: "Medya / Dosya Kütüphanesi", icon: ImageIcon },
-        { id: "14_search_filter", num: "14", title: "Arama / Filtreleme", icon: Filter },
-      ],
-    },
-    {
-      name: "Zeka & Otomasyon",
-      items: [
-        {
-          id: "15_ai_agents",
-          num: "15",
-          title: "AI / Ajan Merkezi",
-          icon: Sparkles,
-          badge: "Gemini",
-          badgeColor: "bg-purple-500/20 text-purple-300",
-        },
-        { id: "05_scrapers", num: "05", title: "Scraper / Kaynak Yönetimi", icon: Radio },
-        { id: "08_social", num: "08", title: "Sosyal Medya Yönetimi", icon: Share2 },
-        {
-          id: "16_moderation",
-          num: "16",
-          title: "Moderasyon Merkezi",
-          icon: ShieldCheck,
-          badge: pendingModerations > 0 ? pendingModerations : undefined,
-          badgeColor: "bg-amber-500/20 text-amber-300",
-        },
-        {
-          id: "22_queue_workers",
-          num: "22",
-          title: "Kuyruk / Zamanlanmış Görevler",
-          icon: Cpu,
-          badge: activeJobs > 0 ? `${activeJobs} İş` : undefined,
-          badgeColor: "bg-cyan-500/20 text-cyan-300",
-        },
-      ],
-    },
-    {
-      name: "Kullanıcı & Gelir Modelleri",
-      items: [
-        {
-          id: "02_users_roles",
-          num: "02",
-          title: "Kullanıcı / Rol / İzin (RBAC)",
-          icon: Users,
-          badge: users.length,
-          badgeColor: "bg-slate-700 text-slate-300",
-        },
-        { id: "03_packages", num: "03", title: "Üyelik Paketleri", icon: Award },
-        { id: "04_ads", num: "04", title: "Reklam Yönetimi", icon: Megaphone },
-      ],
-    },
-    {
-      name: "SEO & Analitik",
-      items: [
-        { id: "17_seo", num: "17", title: "SEO Merkezi", icon: Globe },
-        { id: "18_analytics", num: "18", title: "İstatistik / Analitik", icon: BarChart3 },
-        { id: "19_audit_logs", num: "19", title: "Log / Denetim İzi (Audit)", icon: ScrollText },
-      ],
-    },
-    {
-      name: "Sistem & Altyapı",
-      items: [
-        { id: "01_system_settings", num: "01", title: "Sistem Ayarları", icon: Sliders },
-        { id: "20_security", num: "20", title: "Sistem Güvenliği", icon: Lock },
-        { id: "21_api_integrations", num: "21", title: "API / Entegrasyonlar", icon: Code2 },
-      ],
-    },
-  ];
+  // Track expanded submenus (Treeview)
+  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
+    "09_dashboard": false,
+    "06_documents": true,
+    "25_dilekcematik": true,
+    "12_menus": false,
+    "14_search_filter": false,
+    "15_ai_agents": false,
+  });
+
+  // Automatically expand sub-menu of active module
+  useEffect(() => {
+    if (activeModuleId) {
+      setOpenSubMenus((prev) => ({
+        ...prev,
+        [activeModuleId]: true,
+      }));
+    }
+  }, [activeModuleId]);
+
+  const toggleSubMenu = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenSubMenus((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  // Group accordion toggle
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    "Yönetim & Panel": true,
+    "Doküman & İçerik": true,
+    "Zeka & Otomasyon": true,
+    "Kullanıcı & Gelir Modelleri": true,
+    "SEO & Analitik": true,
+    "Sistem & Altyapı": true,
+  });
+
+  const toggleGroup = (groupName: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
+  };
+
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case "LayoutDashboard":
+        return LayoutDashboard;
+      case "Bell":
+        return Bell;
+      case "FileText":
+        return FileText;
+      case "BookOpen":
+        return BookOpen;
+      case "CalendarDays":
+        return CalendarDays;
+      case "Scale":
+        return Scale;
+      case "Layers":
+        return Layers;
+      case "Menu":
+        return MenuIcon;
+      case "Image":
+        return ImageIcon;
+      case "Filter":
+        return Filter;
+      case "Sparkles":
+        return Sparkles;
+      case "Radio":
+        return Radio;
+      case "Share2":
+        return Share2;
+      case "ShieldCheck":
+        return ShieldCheck;
+      case "Cpu":
+        return Cpu;
+      case "Users":
+        return Users;
+      case "Award":
+        return Award;
+      case "Megaphone":
+        return Megaphone;
+      case "Globe":
+        return Globe;
+      case "BarChart3":
+        return BarChart3;
+      case "ScrollText":
+        return ScrollText;
+      case "Sliders":
+        return Sliders;
+      case "Lock":
+        return Lock;
+      case "Code2":
+        return Code2;
+      default:
+        return FileText;
+    }
+  };
+
+  const canAccessModule = (id: string) => {
+    if (currentRole.slug === "super_admin" || currentRole.slug === "administrator") return true;
+
+    if (["01_system_settings", "20_security", "21_api_integrations"].includes(id)) {
+      return hasPermission("manage_system");
+    }
+    if (["02_users_roles", "03_packages", "04_ads"].includes(id)) {
+      return hasPermission("manage_system") || hasPermission("export");
+    }
+    if (["17_seo", "18_analytics", "19_audit_logs"].includes(id)) {
+      return hasPermission("moderate") || hasPermission("manage_system") || hasPermission("export");
+    }
+    if (["15_ai_agents", "05_scrapers", "08_social", "16_moderation", "22_queue_workers"].includes(id)) {
+      return hasPermission("moderate") || hasPermission("import") || hasPermission("manage_system");
+    }
+    return hasPermission("view") || hasPermission("create");
+  };
+
+  const groupsToRender = navigationGroups && navigationGroups.length > 0 ? navigationGroups : NAVIGATION_GROUPS;
+
+  const filteredModuleGroups = groupsToRender.map((group) => ({
+    ...group,
+    items: group.items
+      .filter((item) => canAccessModule(item.id))
+      .filter((item) => {
+        if (!sidebarSearch.trim()) return true;
+        const query = sidebarSearch.toLowerCase();
+        const matchesTitle = item.title.toLowerCase().includes(query);
+        const matchesSub = item.subItems?.some((sub) => sub.title.toLowerCase().includes(query));
+        return matchesTitle || matchesSub;
+      }),
+  })).filter((group) => group.items.length > 0);
+
+  // Dynamic badge override (AdminLTE badge styles)
+  const getBadgeInfo = (item: NavigationModuleItem) => {
+    if (item.id === "06_documents") {
+      return { badge: activeDocsCount, color: "bg-[#007bff] text-white" };
+    }
+    if (item.id === "16_moderation" && pendingModerations > 0) {
+      return { badge: pendingModerations, color: "bg-[#dc3545] text-white" };
+    }
+    if (item.id === "22_queue_workers" && activeJobs > 0) {
+      return { badge: `${activeJobs} İş`, color: "bg-[#17a2b8] text-white" };
+    }
+    if (item.id === "02_users_roles") {
+      return { badge: users.length, color: "bg-[#6c757d] text-white" };
+    }
+    if (item.badge) {
+      return { badge: item.badge, color: "bg-[#28a745] text-white" };
+    }
+    return null;
+  };
 
   return (
     <>
@@ -155,98 +228,232 @@ export const Sidebar: React.FC<{ isOpen: boolean; setIsOpen: (open: boolean) => 
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 lg:hidden transition-opacity"
         />
       )}
 
+      {/* AdminLTE 3 Dark Sidebar (main-sidebar sidebar-dark-primary) */}
       <aside
-        className={`fixed lg:static top-16 bottom-0 left-0 w-72 bg-slate-900 border-r border-slate-800 flex flex-col z-30 transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static top-0 bottom-0 left-0 w-64 bg-[#343a40] text-[#c2c7d0] border-r border-[#4b545c] flex flex-col z-40 transition-transform duration-300 ease-in-out select-none shadow-md ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-              22 Modül Mimarisi
-            </span>
-          </div>
-          <span className="text-[11px] font-mono text-slate-500">v2.4 Prod</span>
-        </div>
-
-        {/* Scrollable Navigation */}
-        <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-5 custom-scrollbar">
-          {moduleGroups.map((group) => (
-            <div key={group.name} className="space-y-1">
-              <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                <span>{group.name}</span>
-              </div>
-              <div className="space-y-0.5 mt-1">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeModuleId === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveModuleId(item.id);
-                        if (window.innerWidth < 1024) setIsOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all group ${
-                        isActive
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-semibold"
-                          : "text-slate-300 hover:text-white hover:bg-slate-800/80"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={`font-mono text-[10px] font-semibold transition-colors ${
-                            isActive
-                              ? "text-indigo-200"
-                              : "text-slate-500 group-hover:text-slate-400"
-                          }`}
-                        >
-                          {item.num}
-                        </span>
-                        <Icon
-                          className={`w-4 h-4 shrink-0 transition-transform ${
-                            isActive ? "text-white" : "text-slate-400 group-hover:scale-110"
-                          }`}
-                        />
-                        <span className="truncate text-left">{item.title}</span>
-                      </div>
-
-                      {item.badge && (
-                        <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ml-1.5 ${
-                            isActive
-                              ? "bg-white/20 text-white"
-                              : item.badgeColor || "bg-slate-800 text-slate-400"
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* Brand Link (AdminLTE brand-link) */}
+        <div className="h-14 px-4 border-b border-[#4b545c] flex items-center justify-between bg-[#343a40] shrink-0">
+          <button
+            type="button"
+            onClick={() => navigateToModule("09_dashboard")}
+            className="flex items-center gap-2.5 text-left group cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded bg-[#007bff] flex items-center justify-center text-white font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
+              2E
             </div>
-          ))}
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-bold text-white text-base tracking-wider">2EVRAK</span>
+              <span className="text-[10px] font-mono text-gray-300 bg-white/10 px-1.5 py-0.5 rounded">
+                LTE 3
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="lg:hidden p-1 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Menüyü Kapat"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Footer quick system summary */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] text-slate-400">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-slate-400 font-medium">Hedef Kitle</span>
-            <span className="text-indigo-400 font-semibold">1.000.000 Öğretmen</span>
+        {/* User Panel (AdminLTE user-panel) */}
+        <div className="px-4 py-3 border-b border-[#4b545c] flex items-center gap-3 bg-[#343a40] shrink-0">
+          <div className="relative">
+            <div className="w-8 h-8 rounded-full bg-[#007bff]/20 border border-[#007bff]/40 flex items-center justify-center text-white font-bold text-xs uppercase">
+              {(currentUser?.fullName || currentUser?.name || "Öğretmen").slice(0, 2)}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#28a745] border-2 border-[#343a40]" />
           </div>
-          <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-gradient-to-r from-indigo-500 to-cyan-400 h-full w-[14.2%]" />
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-white truncate">
+              {currentUser?.fullName || currentUser?.name || "Öğretmen"}
+            </div>
+            <div className="text-[10px] text-gray-400 flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#28a745]" />
+              <span className="truncate">{currentRole?.name || "Yönetici"} • Çevrimiçi</span>
+            </div>
           </div>
-          <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-            <span>142.500 Aktif Öğretmen</span>
-            <span>%14.2 MEB Erişimi</span>
+        </div>
+
+        {/* Sidebar Search Form (AdminLTE form-inline) */}
+        <div className="px-3 py-2 border-b border-[#4b545c] shrink-0">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              placeholder="Menüde ara..."
+              className="w-full bg-[#3f474e] border border-[#4f5962] text-xs text-white rounded px-2.5 py-1.5 placeholder-gray-400 focus:outline-none focus:border-[#007bff]"
+            />
+            {sidebarSearch ? (
+              <button
+                type="button"
+                onClick={() => setSidebarSearch("")}
+                className="absolute right-2 text-gray-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 pointer-events-none" />
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar Navigation Menu (AdminLTE nav nav-pills nav-sidebar flex-column) */}
+        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2 custom-scrollbar">
+          {filteredModuleGroups.map((group) => {
+            const isGroupOpen = openGroups[group.name] ?? true;
+
+            return (
+              <div key={group.name} className="space-y-0.5">
+                {/* Section Header (AdminLTE nav-header) */}
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.name)}
+                  className="w-full px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#6c757d] hover:text-[#c2c7d0] flex items-center justify-between cursor-pointer text-left"
+                >
+                  <span className="truncate">{group.name}</span>
+                  <span className="text-[10px] text-gray-500 ml-1">
+                    {isGroupOpen ? "▾" : "▸"}
+                  </span>
+                </button>
+
+                {/* Group Modules (AdminLTE nav-item) */}
+                {isGroupOpen && (
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const Icon = getIcon(item.iconName);
+                      const isActive = activeModuleId === item.id;
+                      const hasSub = item.subItems && item.subItems.length > 0;
+                      const isSubOpen = openSubMenus[item.id];
+                      const badgeInfo = getBadgeInfo(item);
+
+                      return (
+                        <div key={item.id} className="space-y-0.5">
+                          {/* Main Module Nav Link */}
+                          <div
+                            onClick={() => {
+                              // If it has sub-items, toggle open AND navigate to default sub
+                              if (hasSub) {
+                                setOpenSubMenus((prev) => ({ ...prev, [item.id]: !prev[item.id] }));
+                                const defaultSub = item.subItems?.[0]?.title;
+                                navigateToModule(item.id, defaultSub);
+                              } else {
+                                navigateToModule(item.id);
+                              }
+                              if (window.innerWidth < 1024 && !hasSub) setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-[0.25rem] text-xs font-normal transition-colors group cursor-pointer select-none ${
+                              isActive
+                                ? "bg-[#007bff] text-white font-semibold shadow-xs"
+                                : "text-[#c2c7d0] hover:text-white hover:bg-[#494e53]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <Icon
+                                className={`w-4 h-4 shrink-0 transition-transform ${
+                                  isActive ? "text-white" : "text-[#c2c7d0] group-hover:text-white"
+                                }`}
+                              />
+                              <span className="truncate">{item.title}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {badgeInfo && (
+                                <span
+                                  className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                                    isActive ? "bg-white text-[#007bff]" : badgeInfo.color
+                                  }`}
+                                >
+                                  {badgeInfo.badge}
+                                </span>
+                              )}
+                              {hasSub && (
+                                <ChevronRight
+                                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                    isSubOpen ? "rotate-90 text-white" : "text-gray-400 group-hover:text-white"
+                                  }`}
+                                />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Collapsible Subitems (AdminLTE nav-treeview) */}
+                          {hasSub && isSubOpen && (
+                            <div className="bg-[#2c3136] rounded-[0.25rem] my-0.5 py-1 px-1 space-y-0.5 border-l-2 border-[#007bff]">
+                              {item.subItems!.map((sub, sIdx) => {
+                                const isSubActive =
+                                  activeModuleId === item.id &&
+                                  (activeSubItemId === sub.title || (!activeSubItemId && sIdx === 0));
+
+                                return (
+                                  <button
+                                    key={sub.id || sIdx}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigateToModule(sub.actionId, sub.title);
+                                      if (window.innerWidth < 1024) setIsOpen(false);
+                                    }}
+                                    className={`w-full text-left pl-3 pr-2 py-1.5 rounded-[0.25rem] text-[11px] font-normal transition-colors flex items-center justify-between group cursor-pointer ${
+                                      isSubActive
+                                        ? "bg-[#007bff] text-white font-bold"
+                                        : "text-[#c2c7d0] hover:text-white hover:bg-[#343a40]"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Circle
+                                        className={`w-1.5 h-1.5 shrink-0 ${
+                                          isSubActive
+                                            ? "fill-white text-white"
+                                            : "fill-transparent text-[#6c757d] group-hover:text-white"
+                                        }`}
+                                      />
+                                      <span className="truncate">{sub.title}</span>
+                                    </div>
+
+                                    {isSubActive && (
+                                      <span className="text-[10px] text-white/80 font-mono">
+                                        ●
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Sidebar Footer (AdminLTE sidebar bottom status) */}
+        <div className="p-3 border-t border-[#4b545c] bg-[#343a40] text-[11px] text-[#6c757d] shrink-0">
+          <div className="flex items-center justify-between mb-1 text-[10px]">
+            <span className="text-gray-400">MEB Öğretmen Hedefi</span>
+            <span className="text-white font-mono font-bold">142.500 / 1.000.000</span>
+          </div>
+          <div className="w-full bg-[#494e53] h-1.5 rounded-full overflow-hidden">
+            <div className="bg-[#28a745] h-full w-[14.2%]" />
+          </div>
+          <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+            <span>2Evrak AdminLTE v3.2</span>
+            <span className="text-[#28a745] font-semibold">%14.2 Erişim</span>
           </div>
         </div>
       </aside>

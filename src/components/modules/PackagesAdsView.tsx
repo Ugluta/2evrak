@@ -36,6 +36,8 @@ export const PackagesAdsView: React.FC = () => {
   const [pkgPrice, setPkgPrice] = useState(99);
   const [pkgDownloadLimit, setPkgDownloadLimit] = useState(50);
   const [pkgAiLimit, setPkgAiLimit] = useState(100);
+  const [pkgCleanExport, setPkgCleanExport] = useState(true);
+  const [pkgZipDownload, setPkgZipDownload] = useState(true);
 
   // New ad form state
   const [adName, setAdName] = useState("");
@@ -59,6 +61,7 @@ export const PackagesAdsView: React.FC = () => {
       order: packages.length + 1,
       limits: {
         documentDownloadsPerDay: pkgDownloadLimit,
+        downloadPerDay: pkgDownloadLimit,
         aiCreditsPerMonth: pkgAiLimit,
         aiQuestionGenerationMonthly: Math.round(pkgAiLimit / 3),
         maxDocumentCreationMonthly: 50,
@@ -66,6 +69,8 @@ export const PackagesAdsView: React.FC = () => {
         canShareSocial: true,
         hasSpecialContentAccess: true,
         canExportPdfWord: true,
+        cleanHeaderlessExport: pkgCleanExport,
+        directZipDownload: pkgZipDownload,
       },
       description: `${pkgName} ile MEB evrak ve AI araçlarına tam erişim sağlayın.`,
     });
@@ -138,6 +143,49 @@ export const PackagesAdsView: React.FC = () => {
         </div>
       </div>
 
+      {/* AdminLTE Small Boxes: Packages & Ads Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="bg-[#6f42c1] text-white rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">{packages.length} Paket</div>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Üyelik Modelleri</p>
+          </div>
+          <Award className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-white/80 mt-2 font-mono">Ücretsiz & MEB Pro Tier</span>
+        </div>
+
+        <div className="bg-[#28a745] text-white rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">{ads.filter((a) => a.isActive).length} Alan</div>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Aktif Reklam & Sponsorluk</p>
+          </div>
+          <Megaphone className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-white/80 mt-2 font-mono">AdSense & Doğrudan Banner</span>
+        </div>
+
+        <div className="bg-[#17a2b8] text-white rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">
+              {ads.reduce((acc, a) => acc + (a.metrics?.impressions || 0), 0).toLocaleString("tr-TR")}
+            </div>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Reklam Gösterimleri</p>
+          </div>
+          <Eye className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-white/80 mt-2 font-mono">Görüntülenme Sayısı</span>
+        </div>
+
+        <div className="bg-[#007bff] text-white rounded overflow-hidden shadow-xs relative flex flex-col justify-between p-4">
+          <div>
+            <div className="text-2xl font-black font-mono">
+              {ads.reduce((acc, a) => acc + (a.metrics?.clicks || 0), 0).toLocaleString("tr-TR")}
+            </div>
+            <p className="text-xs font-semibold text-white/90 mt-0.5">Toplam Tıklama</p>
+          </div>
+          <MousePointer className="w-12 h-12 text-black/15 absolute right-2 top-2 pointer-events-none" />
+          <span className="text-[10px] text-white/80 mt-2 font-mono">Tıklanma Başı Gelir (CPC)</span>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
         <button
@@ -205,6 +253,26 @@ export const PackagesAdsView: React.FC = () => {
                       <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>{pkg.limits.storageMb} MB Bulut Depolama Alanı</span>
                     </div>
+                    <div className="flex items-center gap-2">
+                      {pkg.limits.cleanHeaderlessExport ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <span className="text-slate-600 text-xs font-bold pl-0.5 shrink-0">✕</span>
+                      )}
+                      <span className={pkg.limits.cleanHeaderlessExport ? "text-indigo-300 font-semibold" : "text-slate-500 line-through"}>
+                        Başlıksız / Temiz Çıktı Modu
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {pkg.limits.directZipDownload ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <span className="text-slate-600 text-xs font-bold pl-0.5 shrink-0">✕</span>
+                      )}
+                      <span className={pkg.limits.directZipDownload ? "text-cyan-300 font-semibold" : "text-slate-500 line-through"}>
+                        Zümre Toplu ZIP İndirme
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -236,7 +304,7 @@ export const PackagesAdsView: React.FC = () => {
               </div>
               <div className="mt-3 flex items-baseline gap-2">
                 <span className="text-2xl font-extrabold text-white font-['Space_Grotesk']">
-                  ₺{totalAdRevenue.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
+                  ₺{(totalAdRevenue ?? 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
                 </span>
                 <span className="text-xs text-emerald-400 font-semibold">+18.5%</span>
               </div>
@@ -250,7 +318,7 @@ export const PackagesAdsView: React.FC = () => {
               </div>
               <div className="mt-3 flex items-baseline gap-2">
                 <span className="text-2xl font-extrabold text-white font-['Space_Grotesk']">
-                  {totalAdImpressions.toLocaleString("tr-TR")}
+                  {(totalAdImpressions ?? 0).toLocaleString("tr-TR")}
                 </span>
                 <span className="text-xs text-cyan-400 font-semibold">MEB Ziyaretçileri</span>
               </div>
@@ -264,7 +332,7 @@ export const PackagesAdsView: React.FC = () => {
               </div>
               <div className="mt-3 flex items-baseline gap-2">
                 <span className="text-2xl font-extrabold text-white font-['Space_Grotesk']">
-                  {totalAdClicks.toLocaleString("tr-TR")}
+                  {(totalAdClicks ?? 0).toLocaleString("tr-TR")}
                 </span>
                 <span className="text-xs text-purple-400 font-semibold">CTR: %3.6</span>
               </div>
@@ -309,11 +377,11 @@ export const PackagesAdsView: React.FC = () => {
                         </td>
 
                         <td className="p-3.5 whitespace-nowrap font-mono text-[11px]">
-                          {ad.stats.impressions.toLocaleString("tr-TR")} / {ad.stats.clicks.toLocaleString("tr-TR")}
+                          {(ad.stats?.impressions ?? 0).toLocaleString("tr-TR")} / {(ad.stats?.clicks ?? 0).toLocaleString("tr-TR")}
                         </td>
 
                         <td className="p-3.5 whitespace-nowrap font-mono font-bold text-emerald-400">
-                          ₺{ad.stats.revenue.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
+                          ₺{(ad.stats?.revenue ?? 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}
                         </td>
 
                         <td className="p-3.5 whitespace-nowrap">
@@ -388,6 +456,34 @@ export const PackagesAdsView: React.FC = () => {
                     value={pkgDownloadLimit}
                     onChange={(e) => setPkgDownloadLimit(Number(e.target.value))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-slate-200 font-medium text-xs">Başlıksız / Temiz Çıktı Modu</div>
+                    <div className="text-[10px] text-slate-400">Word ve PDF evraklarda antet ve logoları kaldırarak yazdırma</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={pkgCleanExport}
+                    onChange={(e) => setPkgCleanExport(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                  <div>
+                    <div className="text-slate-200 font-medium text-xs">Zümre & Branş Toplu ZIP İndirme</div>
+                    <div className="text-[10px] text-slate-400">Tüm plan ve evrakları tek tıkla arşiv olarak indirebilme</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={pkgZipDownload}
+                    onChange={(e) => setPkgZipDownload(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                   />
                 </div>
               </div>

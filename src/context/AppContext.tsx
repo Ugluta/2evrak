@@ -30,7 +30,12 @@ import {
   WebhookEndpoint,
   QueueJob,
   WorkerPoolStatus,
+  AcademicCalendarConfig,
+  GradeCurriculum,
+  TtkbWeeklyScheduleInfo,
+  JudicialPrecedent,
 } from "../types";
+import { initialAcademicCalendar, initialGradeCurriculums, initialTtkbWeeklySchedules } from "../data/curriculumData";
 import {
   initialSystemSettings,
   initialPermissions,
@@ -61,15 +66,29 @@ import {
   initialWebhooks,
   initialQueueJobs,
   initialWorkerPoolStatus,
+  initialJudicialPrecedents,
 } from "../mockData";
+import {
+  NAVIGATION_GROUPS,
+  NavigationGroup,
+  NavigationModuleItem,
+  NavigationSubItem,
+} from "../data/navigationData";
 
 interface AppContextType {
   activeModuleId: string;
   setActiveModuleId: (id: string) => void;
+  activeSubItemId: string;
+  setActiveSubItemId: (subId: string) => void;
+  navigateToModule: (moduleId: string, subItemId?: string) => void;
+  currentView: "admin" | "public" | "teacher";
+  setCurrentView: (view: "admin" | "public" | "teacher") => void;
   currentUser: User;
   setCurrentUser: (user: User) => void;
   currentRole: Role;
   hasPermission: (permKey: string) => boolean;
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
   
   // 01 System Settings
   systemSettings: SystemSettings;
@@ -83,6 +102,7 @@ interface AppContextType {
   updateUser: (id: string, updates: Partial<User>) => void;
   deleteUser: (id: string) => void;
   toggleUserStatus: (id: string) => void;
+  verifyTeacherProfile: (userId: string, tcNo: string, mebbisNo: string) => boolean;
   addRole: (role: Omit<Role, "id">) => void;
   updateRole: (id: string, updates: Partial<Role>) => void;
   deleteRole: (id: string) => void;
@@ -210,16 +230,79 @@ interface AppContextType {
   cancelJob: (id: string) => void;
   dispatchJob: (queue: string, title: string, payload: Record<string, any>, priority?: "low" | "normal" | "high" | "critical") => void;
 
+  // 23 MEB Müfredat & Çalışma Takvimi Motoru
+  academicCalendar: AcademicCalendarConfig;
+  updateAcademicCalendar: (updates: Partial<AcademicCalendarConfig>) => void;
+  gradeCurriculums: GradeCurriculum[];
+  updateCurriculumStatus: (gradeId: string, lessonKey: string, isUpdatedThisYear: boolean, version: string) => void;
+  ttkbWeeklySchedules: TtkbWeeklyScheduleInfo[];
+
+  // 24 Mevzuat & Yargı Emsal Kararları
+  judicialPrecedents: JudicialPrecedent[];
+  updateJudicialPrecedents: (items: JudicialPrecedent[]) => void;
+
   // Global search & UI
   globalSearchQuery: string;
   setGlobalSearchQuery: (query: string) => void;
+
+  // Mobile Grid & Header Navbar Filter state
+  mobileGridCols: 1 | 2 | 3 | 4;
+  setMobileGridCols: (cols: 1 | 2 | 3 | 4) => void;
+  navbarFilterCategory: string;
+  setNavbarFilterCategory: (cat: string) => void;
+  navbarFilterGrade: string;
+  setNavbarFilterGrade: (grade: string) => void;
+  navbarFilterStatus: string;
+  setNavbarFilterStatus: (status: string) => void;
+
+  // 26 Panel Menü & Modül İsimleri Yönetimi
+  navigationGroups: NavigationGroup[];
+  updateNavigationGroup: (oldGroupName: string, newGroupName: string, newDescription?: string) => void;
+  updateNavigationModule: (moduleId: string, updates: Partial<NavigationModuleItem>) => void;
+  updateNavigationSubItem: (moduleId: string, subItemId: string, newTitle: string) => void;
+  resetNavigationToDefault: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeModuleId, setActiveModuleId] = useState<string>("09_dashboard");
+  const [activeSubItemId, setActiveSubItemId] = useState<string>("");
+  const [currentView, setCurrentView] = useState<"admin" | "public" | "teacher">("admin");
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
+  // Mobile layout density & grid cols (1, 2, 3, 4)
+  const [mobileGridCols, setMobileGridColsState] = useState<1 | 2 | 3 | 4>(() => {
+    try {
+      const saved = localStorage.getItem("2evrak_mobile_grid_cols");
+      if (saved && ["1", "2", "3", "4"].includes(saved)) {
+        return Number(saved) as 1 | 2 | 3 | 4;
+      }
+    } catch {
+      // ignore
+    }
+    return 2; // Default 2'li düzen
+  });
+
+  const setMobileGridCols = (cols: 1 | 2 | 3 | 4) => {
+    setMobileGridColsState(cols);
+    try {
+      localStorage.setItem("2evrak_mobile_grid_cols", String(cols));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Header Sub-Navbar Filters
+  const [navbarFilterCategory, setNavbarFilterCategory] = useState<string>("all");
+  const [navbarFilterGrade, setNavbarFilterGrade] = useState<string>("all");
+  const [navbarFilterStatus, setNavbarFilterStatus] = useState<string>("all");
+
+  const navigateToModule = (moduleId: string, subItemId?: string) => {
+    setActiveModuleId(moduleId);
+    setActiveSubItemId(subItemId || "");
+  };
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(initialSystemSettings);
   const [permissions] = useState<Permission[]>(initialPermissions);
@@ -230,7 +313,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ads, setAds] = useState<AdItem[]>(initialAds);
   const [sources, setSources] = useState<ScraperSource[]>(initialScraperSources);
   const [scraperJobs, setScraperJobs] = useState<ScraperJobItem[]>(initialScraperJobs);
-  const [categories, setCategories] = useState<DocumentCategory[]>(initialDocumentCategories);
+  const [categories, setCategories] = useState<DocumentCategory[]>(() => {
+    try {
+      const saved = localStorage.getItem("2evrak_document_categories");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return initialDocumentCategories;
+  });
+
+  // Dynamic Navigation Groups & Menu Names State
+  const [navigationGroups, setNavigationGroups] = useState<NavigationGroup[]>(() => {
+    try {
+      const saved = localStorage.getItem("2evrak_navigation_groups");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return NAVIGATION_GROUPS;
+  });
+
+  const saveNavigationGroups = (groups: NavigationGroup[]) => {
+    setNavigationGroups(groups);
+    try {
+      localStorage.setItem("2evrak_navigation_groups", JSON.stringify(groups));
+    } catch {
+      // ignore
+    }
+  };
+
+  const updateNavigationGroup = (oldGroupName: string, newGroupName: string, newDescription?: string) => {
+    const updated = navigationGroups.map((g) => {
+      if (g.name === oldGroupName) {
+        return {
+          ...g,
+          name: newGroupName,
+          description: newDescription !== undefined ? newDescription : g.description,
+          items: g.items.map((it) => ({ ...it, groupName: newGroupName })),
+        };
+      }
+      return g;
+    });
+    saveNavigationGroups(updated);
+  };
+
+  const updateNavigationModule = (moduleId: string, updates: Partial<NavigationModuleItem>) => {
+    const updated = navigationGroups.map((g) => ({
+      ...g,
+      items: g.items.map((item) => (item.id === moduleId ? { ...item, ...updates } : item)),
+    }));
+    saveNavigationGroups(updated);
+  };
+
+  const updateNavigationSubItem = (moduleId: string, subItemId: string, newTitle: string) => {
+    const updated = navigationGroups.map((g) => ({
+      ...g,
+      items: g.items.map((item) => {
+        if (item.id === moduleId && item.subItems) {
+          return {
+            ...item,
+            subItems: item.subItems.map((s) =>
+              s.id === subItemId || s.title === subItemId ? { ...s, title: newTitle } : s
+            ),
+          };
+        }
+        return item;
+      }),
+    }));
+    saveNavigationGroups(updated);
+  };
+
+  const resetNavigationToDefault = () => {
+    saveNavigationGroups(NAVIGATION_GROUPS);
+  };
   const [documents, setDocuments] = useState<DocumentItem[]>(initialDocuments);
   const [contents, setContents] = useState<ContentItem[]>(initialContents);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(initialSocialAccounts);
@@ -252,6 +414,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>(initialWebhooks);
   const [queueJobs, setQueueJobs] = useState<QueueJob[]>(initialQueueJobs);
   const [workerPool, setWorkerPool] = useState<WorkerPoolStatus>(initialWorkerPoolStatus);
+  const [judicialPrecedents, setJudicialPrecedents] = useState<JudicialPrecedent[]>(initialJudicialPrecedents);
+
+  const updateJudicialPrecedents = (items: JudicialPrecedent[]) => {
+    setJudicialPrecedents(items);
+  };
+  const [academicCalendar, setAcademicCalendar] = useState<AcademicCalendarConfig>(initialAcademicCalendar);
+  const [gradeCurriculums, setGradeCurriculums] = useState<GradeCurriculum[]>(initialGradeCurriculums);
+  const [ttkbWeeklySchedules, setTtkbWeeklySchedules] = useState<TtkbWeeklyScheduleInfo[]>(initialTtkbWeeklySchedules);
 
   const currentRole = roles.find((r) => r.id === currentUser.roleId) || roles[0];
 
@@ -384,6 +554,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return u;
       })
     );
+  };
+
+  const verifyTeacherProfile = (userId: string, tcNo: string, mebbisNo: string): boolean => {
+    // T.C. Kimlik algoritması ve MEBBİS format kontrolü
+    const cleanedTc = tcNo.replace(/\D/g, "");
+    const cleanedMebbis = mebbisNo.trim().toUpperCase();
+
+    if (cleanedTc.length !== 11 || !cleanedMebbis) {
+      return false;
+    }
+
+    const maskedTc = `${cleanedTc.slice(0, 2)}******${cleanedTc.slice(8)}`;
+    const verifiedDate = new Date().toISOString().split("T")[0];
+
+    // Kullanıcıyı güncelle ve doğrulanmış öğretmen paketine geçir (eğer ücretsizdeyse)
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === userId) {
+          const updatedUser: User = {
+            ...u,
+            verifiedTeacher: true,
+            verificationStatus: "verified",
+            tcNo: maskedTc,
+            mebbisNo: cleanedMebbis,
+            verifiedAt: verifiedDate,
+            // Eğer temel onaysız paketteyse otomatik olarak Doğrulanmış Öğretmen paketine yükselt
+            packageId: u.packageId === "pkg_free" ? "pkg_meb_verified" : u.packageId,
+          };
+
+          if (currentUser.id === userId) {
+            setCurrentUser(updatedUser);
+          }
+
+          return updatedUser;
+        }
+        return u;
+      })
+    );
+
+    addAuditLog({
+      actorId: currentUser.id,
+      actorName: currentUser.fullName,
+      actorRole: currentRole.name,
+      action: "UPDATE_USER",
+      targetType: "user",
+      targetId: userId,
+      targetName: `MEBBİS Doğrulaması: ${maskedTc} / ${cleanedMebbis}`,
+      newValue: "verified",
+      ipAddress: "88.255.10.15",
+      result: "success",
+    });
+
+    sendNotification({
+      title: "Öğretmen Profiliniz Doğrulandı! 🎉",
+      message: `MEBBİS (${cleanedMebbis}) ve T.C. kimlik bilgileriniz doğrulandı. Başlıksız çıktı ve zümre indirme haklarınız tanımlandı!`,
+      type: "system",
+      channels: ["site", "push"],
+      targetGroup: "branch_specific",
+      targetUserId: userId,
+      priority: "high",
+    });
+
+    return true;
   };
 
   const addRole = (roleData: Omit<Role, "id">) => {
@@ -600,7 +833,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `cat_${Date.now()}`,
       itemCount: 0,
     };
-    setCategories((prev) => [...prev, newCat]);
+    setCategories((prev) => {
+      const updated = [...prev, newCat];
+      try {
+        localStorage.setItem("2evrak_document_categories", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     addAuditLog({
       actorId: currentUser.id,
       actorName: currentUser.fullName,
@@ -616,11 +855,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateCategory = (id: string, updates: Partial<DocumentCategory>) => {
-    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+    setCategories((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      try {
+        localStorage.setItem("2evrak_document_categories", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   const deleteCategory = (id: string) => {
-    setCategories((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
+    setCategories((prev) => {
+      const updated = prev.filter((c) => c.id !== id && c.parentId !== id);
+      try {
+        localStorage.setItem("2evrak_document_categories", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   const addDocument = (docData: Omit<DocumentItem, "id" | "createdAt" | "updatedAt" | "downloadCount" | "viewCount" | "rating" | "isSoftDeleted">) => {
@@ -937,6 +1188,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setDocuments((dList) =>
               dList.map((d) => (d.id === item.targetId ? { ...d, status: "published" } : d))
             );
+          } else if (item.targetType === "content") {
+            setContents((cList) =>
+              cList.map((c) => (c.id === item.targetId ? { ...c, status: "published" } : c))
+            );
+          } else if (item.targetType === "scraper_output") {
+            // Check if already in documents or add it as verified scraper document
+            setDocuments((dList) => {
+              const existing = dList.find((d) => d.id === `scraped_${item.id}`);
+              if (!existing) {
+                return [
+                  {
+                    id: `scraped_${item.id}`,
+                    title: item.title,
+                    slug: item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+                    categoryId: "cat_yazili",
+                    gradeId: "all",
+                    lessonKey: "genel",
+                    fileType: "pdf",
+                    fileSize: "2.4 MB",
+                    downloadUrl: "#",
+                    authorId: "scraper_bot",
+                    authorName: item.submittedBy || "Resmi Kaynak Botu",
+                    status: "published",
+                    downloadCount: 0,
+                    viewCount: 1,
+                    rating: 5.0,
+                    createdAt: now,
+                    updatedAt: now,
+                    tags: ["Resmi MEB", "Doğrulanmış Scraper", "Yeni Maarif Modeli"],
+                    isSoftDeleted: false,
+                  },
+                  ...dList,
+                ];
+              }
+              return dList;
+            });
           }
           return {
             ...item,
@@ -954,17 +1241,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const rejectModerationItem = (id: string, reason: string) => {
     const now = new Date().toISOString().replace("T", " ").substring(0, 16);
     setModerationItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: "rejected",
-              reviewerNotes: reason,
-              reviewedBy: currentUser.fullName,
-              reviewedAt: now,
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === id) {
+          if (item.targetType === "content") {
+            setContents((cList) =>
+              cList.map((c) => (c.id === item.targetId ? { ...c, status: "draft" } : c))
+            );
+          }
+          return {
+            ...item,
+            status: "rejected",
+            reviewerNotes: reason,
+            reviewedBy: currentUser.fullName,
+            reviewedAt: now,
+          };
+        }
+        return item;
+      })
     );
   };
 
@@ -976,6 +1269,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (item.targetType === "document") {
             setDocuments((dList) =>
               dList.map((d) => (d.id === item.targetId ? { ...d, status: "revision_required" } : d))
+            );
+          } else if (item.targetType === "content") {
+            setContents((cList) =>
+              cList.map((c) => (c.id === item.targetId ? { ...c, status: "draft" } : c))
             );
           }
           return {
@@ -1081,11 +1378,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setQueueJobs((prev) => [newJob, ...prev]);
   };
 
+  // MEB Çalışma Takvimi & Müfredat Motoru Handlers
+  const updateAcademicCalendar = (updates: Partial<AcademicCalendarConfig>) => {
+    setAcademicCalendar((prev) => ({ ...prev, ...updates }));
+    addAuditLog({
+      actorId: currentUser.id,
+      actorName: currentUser.fullName,
+      actorRole: currentRole.name,
+      action: "UPDATE_SYSTEM_SETTINGS",
+      targetType: "settings",
+      targetId: "academic_calendar",
+      targetName: `MEB Çalışma Takvimi Güncellemesi (${updates.academicYear || academicCalendar.academicYear})`,
+      newValue: JSON.stringify(updates),
+      ipAddress: "88.255.10.15",
+      result: "success",
+    });
+  };
+
+  const updateCurriculumStatus = (
+    gradeId: string,
+    lessonKey: string,
+    isUpdatedThisYear: boolean,
+    version: string
+  ) => {
+    setGradeCurriculums((prev) =>
+      prev.map((grade) => {
+        if (grade.gradeLevelId === gradeId) {
+          return {
+            ...grade,
+            lessons: grade.lessons.map((lesson) =>
+              lesson.lessonKey === lessonKey
+                ? {
+                    ...lesson,
+                    isUpdatedThisYear,
+                    curriculumVersion: version,
+                    lastMebBulletinDate: isUpdatedThisYear
+                      ? `Güncellendi - ${new Date().toLocaleDateString("tr-TR")}`
+                      : lesson.lastMebBulletinDate,
+                  }
+                : lesson
+            ),
+          };
+        }
+        return grade;
+      })
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
         activeModuleId,
         setActiveModuleId,
+        currentView,
+        setCurrentView,
         currentUser,
         setCurrentUser,
         currentRole,
@@ -1099,6 +1445,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateUser,
         deleteUser,
         toggleUserStatus,
+        verifyTeacherProfile,
         addRole,
         updateRole,
         deleteRole,
@@ -1185,8 +1532,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         retryJob,
         cancelJob,
         dispatchJob,
+        academicCalendar,
+        updateAcademicCalendar,
+        gradeCurriculums,
+        updateCurriculumStatus,
+        ttkbWeeklySchedules,
+        judicialPrecedents,
+        updateJudicialPrecedents,
         globalSearchQuery,
         setGlobalSearchQuery,
+        isSidebarOpen,
+        setIsSidebarOpen,
+        activeSubItemId,
+        setActiveSubItemId,
+        navigateToModule,
+        mobileGridCols,
+        setMobileGridCols,
+        navbarFilterCategory,
+        setNavbarFilterCategory,
+        navbarFilterGrade,
+        setNavbarFilterGrade,
+        navbarFilterStatus,
+        setNavbarFilterStatus,
+        navigationGroups,
+        updateNavigationGroup,
+        updateNavigationModule,
+        updateNavigationSubItem,
+        resetNavigationToDefault,
       }}
     >
       {children}

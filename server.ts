@@ -1,7 +1,11 @@
 import express, { Request, Response } from "express";
 import path from "path";
+import fs from "fs";
+import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+
+dotenv.config();
 
 let genAIClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI | null {
@@ -67,12 +71,15 @@ async function startServer() {
 
     const ai = getGeminiClient();
 
-    // System instructions per agent type
+    // System instructions per agent type - MEB 13 Sınıf + Çalışma Takvimi & Müfredat Matrisi
     const agentPrompts: Record<string, string> = {
       icerik_ajani: "Sen 2Evrak İçerik Ajanısın. MEB öğretmenlerine yönelik pedagojik, akıcı, zengin blog, haber, duyuru veya rehber makalesi üretirsin. Yanıtını anlaşılır Türkçe ile başlık, özet ve ana metin olarak yapılandır.",
-      dokuman_ajani: "Sen 2Evrak Doküman Ajanısın. Türk Milli Eğitim Bakanlığı (MEB) müfredatına ve mevzuatına %100 uygun evrak, zümre tutanağı, yıllık plan, çalışma kağıdı şablonları hazırlarsın. Resmi ve profesyonel bir dil kullan.",
-      yazili_soru_ajani: "Sen 2Evrak Yazılı Soru Ajanısın. MEB Ölçme ve Değerlendirme yönetmeliğine tam uyumlu, kazanım odaklı, açık uçlu veya çoktan seçmeli yazılı sınav soruları ve puanlama anahtarı (rubrik) üretirsin.",
-      ders_plani_ajani: "Sen 2Evrak Ders Planı Ajanısın. MEB müfredatına uygun 40 dakikalık ders planı (Giriş, Keşfetme, Açıklama, Derinleştirme, Değerlendirme 5E modeli) üretirsin.",
+      dokuman_ajani: `Sen 2Evrak Resmi Doküman ve Müfredat Ajanısın. 
+Anaokulu ve 1. sınıftan 12. sınıfa kadar tüm 13 kademede MEB Talim ve Terbiye Kurulu Başkanlığı (TTKB) onaylı müfredat, ders kitabı üniteleri ve MEB Çalışma Takvimini temel alırsın.
+KURAL: Müfredat değişmediği sürece yıllık plan, zümre, günlük plan ve sınavların kazanım omurgası SABİTTİR; sadece eğitim yılı çalışma takvimine göre tarihler ve haftalar güncellenir. Müfredat değiştiğinde (örn: 2024 Maarif Modeli) ise yeni ünite, beceri temelli kazanım ve ders kitabı içeriğine göre güncellenir.
+Çıktını eksiksiz bürokratik MEB şablonu, hafta tarihleri, kazanım kodları ve ders kitabı ünite başlıklarıyla oluştur.`,
+      yazili_soru_ajani: `Sen 2Evrak Yazılı Soru Ajanısın. MEB Ölçme ve Değerlendirme Yönetmeliği uyarınca 13 sınıf kademesinin ders kitabı ve MEB ortak sınav senaryolarına tam uyumlu; açık uçlu, analitik ve beceri temelli sınav soruları ile ayrıntılı puanlama anahtarı (rubrik) üretirsin.`,
+      ders_plani_ajani: `Sen 2Evrak Ders Planı Ajanısın. MEB Çalışma Takvimi haftasına ve ders kitabı ünitesine tam oturan, 40 dakikalık (Giriş, Keşfetme, Açıklama, Derinleştirme, Değerlendirme) 5E modeline uygun günlük ders planı üretirsin.`,
       evrak_ajani: "Sen 2Evrak Evrak Ajanısın. Kulüp tutanağı, ŞÖK (Şube Öğretmenler Kurulu) raporu, veli toplantısı kararları ve rehberlik evraklarını eksiksiz bürokratik şablonla üretirsin.",
       seo_ajani: "Sen 2Evrak SEO Ajanısın. Doküman veya içerik için arama motoru optimizasyonu (Meta Title 50-60 karakter, Meta Description 150-160 karakter, Anahtar Kelimeler, Schema JSON-LD taslağı ve Spam Risk Puanı 0-100) üretirsin.",
       moderasyon_ajani: "Sen 2Evrak Moderasyon Ajanısın. İncelenen metni küfür, nefret söylemi, telif ihlali, yanıltıcı bilgi, MEB müfredatına aykırılık ve pedagojik sakınca yönünden denetle. JSON formatında: { 'uygun': boolean, 'guvenlik_skoru': number, 'tespitler': string[], 'oneri': string } döndür.",
@@ -133,7 +140,22 @@ async function startServer() {
     });
   });
 
-  // Scraper Test & Fetch Simulator with SSRF Protection
+  // Helper to format and enhance scraped text readability
+  function formatScrapedContent(rawTitle: string, rawContent: string) {
+    const cleanTitle = (rawTitle || "MEB Resmi Duyuru ve Evrak").trim().replace(/\s+/g, " ");
+    const cleanSnippet = (rawContent || "").trim()
+      .replace(/\s+/g, " ")
+      .replace(/([.?!])\s*(?=[A-ZÇĞİÖŞÜ])/g, "$1\n\n");
+
+    const formattedContent = `### Resmi Kaynak & Metin Okunabilirlik Düzenlemesi\n\n${cleanSnippet}\n\n**MEB Pedagojik Normalizasyon Notu:**\n- Scraper motoru ham veriyi taramış ve öğretmenlerin incelemesi için temiz, paragraf yapısına bölünmüş formata dönüştürmüştür.`;
+
+    return {
+      title: cleanTitle,
+      contentSnippet: formattedContent,
+    };
+  }
+
+  // Scraper Test & Fetch Simulator with SSRF Protection & Readability Formatting
   app.post("/api/scraper/test", async (req: Request, res: Response) => {
     const { url, selectors } = req.body;
 
@@ -155,16 +177,20 @@ async function startServer() {
       });
     }
 
-    // Return structured simulated scrape result based on URL domain
     const isMeb = lowerUrl.includes("meb.gov.tr");
+    const rawTitle = isMeb ? "MEB 2025-2026 Ortak Sınav Takvimi ve Soru Dağılım Tabloları" : "Örnek Branş Zümre Tutanağı ve Yıllık Çalışma Planı";
+    const rawContent = "Millî Eğitim Bakanlığınca yayımlanan güncel kılavuza göre okullarda yapılacak ortak sınavların tarihleri, konu soru dağılım tabloları ve dikkat edilmesi gereken esaslar belirlendi. Tüm zümre öğretmenlerinin bu planlamaya göre yıllık çalışma takvimlerini güncellemesi zorunludur.";
+
+    const formatted = formatScrapedContent(rawTitle, rawContent);
+
     res.json({
       success: true,
       url,
       timestamp: new Date().toISOString(),
       responseCode: 200,
       extractedData: {
-        title: isMeb ? "MEB 2025-2026 Ortak Sınav Takvimi ve Soru Dağılım Tabloları" : "Örnek Branş Zümre Tutanağı ve Yıllık Çalışma Planı",
-        contentSnippet: "Millî Eğitim Bakanlığınca yayımlanan güncel kılavuza göre okullarda yapılacak ortak sınavların tarihleri, konu soru dağılım tabloları ve dikkat edilmesi gereken esaslar belirlendi...",
+        title: formatted.title,
+        contentSnippet: formatted.contentSnippet,
         detectedFiles: [
           { name: "ortak_sinav_kilavuzu_2025.pdf", size: "2.4 MB", type: "application/pdf" },
           { name: "konu_soru_dagilim_tablosu.docx", size: "840 KB", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
@@ -179,7 +205,7 @@ async function startServer() {
   // Vite middleware in dev or static files in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, allowedHosts: true },
       appType: "spa",
     });
     app.use(vite.middlewares);

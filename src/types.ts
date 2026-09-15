@@ -16,6 +16,10 @@ export interface SystemSettings {
     contactPhone: string;
     contactEmail: string;
     maintenanceMode: boolean;
+    academicYear?: string; // Örn: "2025-2026"
+    academicTerm?: string; // Örn: "1. Dönem", "2. Dönem", "Yaz Dönemi"
+    guestDailyDownloadLimit?: number;
+    teacherDailyDownloadLimit?: number;
   };
   seo: {
     siteTitle: string;
@@ -46,6 +50,62 @@ export interface SystemSettings {
     allowedMimeTypes: string[];
     maxUploadSizeMb: number;
     auditLogRetentionDays: number;
+  };
+  aiApi: {
+    primaryProvider: "gemini" | "anthropic" | "deepseek" | "openai" | "copilot" | "meta";
+    geminiApiKey: string;
+    anthropicApiKey: string;
+    deepseekApiKey: string;
+    openaiApiKey: string;
+    copilotApiKey: string;
+    metaApiKey: string;
+    defaultModel: string;
+    scraperAiAutoProcessing: boolean;
+    autoGenerateZumreAndPlans: boolean;
+  };
+  thirdPartyAdsAndAnalytics: {
+    googleAnalyticsId: string;
+    googleAdsenseId: string;
+    amazonAffiliateTag: string;
+    metaPixelId: string;
+    customHeadCode: string;
+    customFooterCode: string;
+  };
+  newsletterAndMessages: {
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    senderEmail: string;
+    newsletterActive: boolean;
+    notifyOnNewMessage: boolean;
+    autoReplyTemplate: string;
+  };
+  calendarAndAcademic: {
+    academicYear: string;
+    termName: string;
+    termStartDate: string;
+    termEndDate: string;
+    holidaySchedule: string;
+  };
+  moduleLimitsAndPages: {
+    defaultPageSize: number;
+    maxDocumentsPerPage: number;
+    featuredModules: string[];
+    allowPublicSubmissions: boolean;
+  };
+  headerFooterConfig: {
+    headerTitle: string;
+    headerSubtitle: string;
+    headerLogoText: string;
+    showPortalBadge: boolean;
+    portalBadgeText: string;
+    footerCopyright: string;
+    footerAboutText: string;
+    heroBackgroundUrl?: string;
+    footerAccordionColumns: Array<{
+      title: string;
+      links: Array<{ label: string; url: string; isExternal?: boolean }>;
+    }>;
   };
 }
 
@@ -82,6 +142,7 @@ export interface Role {
 export interface User {
   id: string;
   fullName: string;
+  name?: string;
   email: string;
   roleId: string;
   customPermissions?: PermissionKey[];
@@ -96,6 +157,17 @@ export interface User {
   twoFactorEnabled: boolean;
   documentsDownloaded: number;
   aiCreditsUsed: number;
+  verifiedTeacher?: boolean; // MEBBİS / E-Devlet onaylı öğretmen
+  phone?: string;
+  tcNo?: string; // T.C. Kimlik No (11 hane - maskelenmiş saklanır/gösterilir)
+  mebbisNo?: string; // MEBBİS Kurum/Öğretmen Sicil No
+  verifiedAt?: string; // Doğrulama tarihi
+  verificationStatus?: "unverified" | "pending" | "verified" | "rejected";
+  // Öğretmen Profil ve Görev Tanımları
+  schoolName?: string;
+  assignedGrades?: string[];
+  clubActivity?: string;
+  guidanceDuty?: string;
 }
 
 // 03 — ÜYELİK PAKETLERİ
@@ -107,6 +179,7 @@ export interface MembershipPackage {
   priceYearly: number;
   isActive: boolean;
   order: number;
+  isTeacherSpecial?: boolean; // MEBBİS/TC ile doğrulanmış öğretmenlere özel avantaj paketi
   limits: {
     documentDownloadsPerDay: number; // 0 = unlimited
     aiCreditsPerMonth: number;
@@ -116,6 +189,10 @@ export interface MembershipPackage {
     canShareSocial: boolean;
     hasSpecialContentAccess: boolean;
     canExportPdfWord: boolean;
+    cleanHeaderlessExport: boolean; // Başlıksız / filigransız / temiz MEB formatında çıktı alabilme
+    directZipDownload: boolean; // Toplu evrak & zümre arşivi (ZIP) tek tıkla indirme
+    customWatermarkRemoval: boolean; // 2Evrak tanıtım filigranını kaldırma
+    priorityQueue: boolean; // Yoğun dönemlerde anında yüksek hızlı indirme önceliği
   };
   description: string;
 }
@@ -252,12 +329,15 @@ export interface DocumentItem {
   fileUrl: string;
   fileName: string;
   fileType: "pdf" | "docx" | "xlsx" | "pptx" | "zip" | "image";
+  fileExtension?: string;
   fileSizeBytes: number;
+  fileSize?: string;
   previewUrl?: string;
   tags: string[];
   source: string; // MEB, Öğretmen Yüklemesi, Scraper, AI Üretimi
   authorId: string;
   authorName: string;
+  accessLevel?: "free" | "teacher_pro" | "vip";
   status: DocumentStatus;
   isSoftDeleted: boolean;
   deletedAt?: string;
@@ -265,6 +345,7 @@ export interface DocumentItem {
   downloadCount: number;
   viewCount: number;
   rating: number;
+  seoDescription?: string;
   seo: {
     metaTitle: string;
     metaDescription: string;
@@ -372,6 +453,8 @@ export interface NotificationItem {
   message: string;
   channels: ("site" | "email" | "push" | "mobile")[];
   targetGroup: "all_teachers" | "branch_specific" | "premium_users" | "admins";
+  targetUserId?: string;
+  priority?: "low" | "normal" | "high";
   isRead: boolean;
   createdAt: string;
   actionUrl?: string;
@@ -628,4 +711,132 @@ export interface WorkerPoolStatus {
       failed: number;
     }
   >;
+}
+
+// 23 — MEB ÇALIŞMA TAKVİMİ & MÜFREDAT MOTORU (13 KADEME & DİNAMİK TARİH SİSTEMİ)
+export interface AcademicCalendarWeek {
+  weekNumber: number; // 1 - 38
+  term: "1. Dönem" | "2. Dönem";
+  startDate: string; // "2025-09-08"
+  endDate: string; // "2025-09-12"
+  isHoliday: boolean;
+  holidayName?: string; // "Ara Tatil", "Yarıyıl Tatili", "29 Ekim Cumhuriyet Bayramı", vb.
+  themeOrMilestone?: string; // "Okulların Açılışı", "1. Ortak Sınav Haftası" vb.
+}
+
+export interface AcademicCalendarConfig {
+  academicYear: string; // "2025-2026"
+  firstTermStart: string; // "2025-09-08"
+  firstTermMidBreakStart: string; // "2025-11-10"
+  firstTermMidBreakEnd: string; // "2025-11-14"
+  firstTermEnd: string; // "2026-01-16"
+  semesterBreakStart: string; // "2026-01-19"
+  semesterBreakEnd: string; // "2026-01-30"
+  secondTermStart: string; // "2026-02-02"
+  secondTermMidBreakStart: string; // "2026-04-06"
+  secondTermMidBreakEnd: string; // "2026-04-10"
+  secondTermEnd: string; // "2026-06-19"
+  weeks: AcademicCalendarWeek[];
+}
+
+export type MebSchoolType =
+  | "Okul Öncesi"
+  | "İlkokul"
+  | "Ortaokul"
+  | "İmam Hatip Ortaokulu"
+  | "Anadolu Lisesi"
+  | "Fen Lisesi"
+  | "Sosyal Bilimler Lisesi"
+  | "Anadolu İmam Hatip Lisesi"
+  | "Mesleki ve Teknik Anadolu Lisesi (MTAL)"
+  | "Güzel Sanatlar ve Spor Lisesi";
+
+export type SubjectCategory = "Ortak / Zorunlu" | "Seçmeli" | "Rehberlik";
+
+export interface TtkbWeeklyScheduleInfo {
+  id: string;
+  schoolType: MebSchoolType;
+  gradeLevelId: string;
+  gradeName: string;
+  totalMandatoryHours: number;
+  totalElectiveHours: number;
+  totalWeeklyHours: number;
+  ttkbDecisionNumber: string;
+  ttkbDecisionDate: string;
+  bulletinNumber: string;
+  notes?: string;
+}
+
+export interface CurriculumCompetency {
+  code: string; // Örn: "MAT.9.1.1"
+  weekNumber: number; // Bağlı olduğu çalışma takvimi haftası
+  title: string;
+  subTopics: string[];
+  hoursPerWeek: number;
+  textbookUnit: string; // Ders Kitabı Ünite Referansı: "Ünite 1: Mantık ve Kümeler"
+  suggestedActivities: string[];
+}
+
+export interface JudicialPrecedent {
+  id: string;
+  title: string;
+  court:
+    | "Danıştay 2. Daire"
+    | "Danıştay 5. Daire"
+    | "Danıştay 8. Daire"
+    | "Anayasa Mahkemesi"
+    | "Yargıtay"
+    | "İdare Mahkemesi"
+    | "MEB Yüksek Disiplin Kurulu";
+  caseNo: string; // Örn: "2024/1452 E., 2025/892 K."
+  date: string; // Örn: "14.05.2025"
+  category:
+    | "Özlük Hakları & Ek Ders"
+    | "Disiplin Soruşturmaları"
+    | "Atama & Yer Değiştirme"
+    | "Yönetici Atama"
+    | "Rapor & İzin Hakları"
+    | "Mobbing & İdari İşlemler";
+  summary: string;
+  fullText: string;
+  legalBasis: string; // Örn: "657 Sayılı Kanun Madde 125, 4483 Sayılı Kanun"
+  result: "İptal Kararı" | "Onama" | "Yürütmenin Durdurulması" | "Bozma" | "Red";
+  tags: string[];
+  viewCount: number;
+  downloadCount: number;
+}
+
+export interface GradeCurriculum {
+  id: string;
+  gradeLevelId: string; // "anaokulu", "1", "2", ... "12" (Toplam 13 Kademe)
+  gradeName: string; // "Anaokulu / Okul Öncesi", "1. Sınıf", ... "12. Sınıf"
+  category: "Okul Öncesi" | "İlkokul" | "Ortaokul" | "Lise";
+  levelStage: "Temel Eğitim" | "Ortaöğretim"; // MEB İdari Yapılanması: Temel Eğitim (Okul Öncesi, İlkokul 1-4, Ortaokul 5-8) & Ortaöğretim (Lise 9-12)
+  maarifModelStatus: "Kademeli Geçiş (Yeni Model)" | "Sabit Müfredat (Önceki Model)";
+  maarifRolloutYear: string; // Örn: "2024-2025 Başlangıç (1, 5, 9)", "2025-2026 (2, 6, 10)", vb.
+  applicableSchoolTypes?: MebSchoolType[];
+  ttkbKararNo?: string;
+  lessons: {
+    lessonKey: string;
+    lessonName: string;
+    weeklyHours: number;
+    subjectCategory?: SubjectCategory; // "Ortak / Zorunlu" | "Seçmeli" | "Rehberlik"
+    applicableSchoolTypes?: MebSchoolType[];
+    textbookName: string;
+    textbookAuthorOrPublisher: string;
+    curriculumVersion: string; // "2024 Türkiye Yüzyılı Maarif Modeli" veya "2018 MEB Programı"
+    isUpdatedThisYear: boolean; // Müfredat bu yıl değişti mi?
+    lastMebBulletinDate: string; // Tebliğler Dergisi Tarih/Sayı
+    ttkbDecisionNumber?: string;
+    competencies: CurriculumCompetency[];
+  }[];
+}
+
+export type MobileGridCols = 1 | 2 | 3 | 4;
+
+export interface MobileLayoutSettings {
+  gridCols: MobileGridCols;
+  iconDensity: "compact" | "normal" | "spacious";
+  showQuickActions: boolean;
+  twoColumnForms: boolean;
 }
